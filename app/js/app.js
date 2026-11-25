@@ -30,8 +30,11 @@
   const nomeRec = id => { const r = RECOMPENSAS.find(x => x.id === id); return r ? r.t[LANG] : id; };
 
   // ---- acesso completo (ativação por código, validada no aparelho) ----
-  const HOST_DEV = ['localhost', '127.0.0.1'].includes(location.hostname) || /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
-  const DEV = HOST_DEV && !location.search.includes('visitante');
+  // Modo de desenvolvimento (acesso completo sem código): só em localhost E com `?dev=1` na URL
+  // (revisão de 25/11/2026). Antes bastava abrir em localhost ou na rede local, e o pacote público
+  // carregava essa porta aberta; agora ela exige um gesto explícito de quem desenvolve.
+  const HOST_DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const DEV = HOST_DEV && /[?&]dev=1(&|$)/.test(location.search);
   let premium = DEV || LS.get('ativado') === '1';
   function setPremium(v) { premium = DEV || v; LS.set('ativado', v ? '1' : '0'); }
   const isPremium = () => premium;
@@ -145,32 +148,90 @@
     if (state.ativo === pid) state.ativo = (state.piratas[0] || {}).id || null;
     save();
   }
-  function resetar() { state.piratas.forEach(p => lapide(chavePirata(p.id))); state.piratas = []; state.ativo = null; state.pin = ''; state.pinT = Date.now(); save(); }
+  // "Apagar tudo deste aparelho" faz o que diz (revisão de 25/11/2026): além dos piratas e do PIN,
+  // apaga o lembrete, as respostas do quiz (que incluem a pergunta sobre diagnóstico), a cópia
+  // anterior à importação e a marca da última cópia. Fica só o idioma e a ativação do acesso completo.
+  function resetar() {
+    state.piratas.forEach(p => lapide(chavePirata(p.id))); state.piratas = []; state.ativo = null; state.pin = ''; state.pinT = Date.now(); save();
+    ['lembrete', 'quiz', 'state_bak', 'state_bak_t', 'backup_t'].forEach(k => LS.del(k));
+    try { Object.keys(localStorage).filter(k => /^mtp_purchase_/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) { /* ok */ }
+    try { if (LEMBRETE.timer) clearTimeout(LEMBRETE.timer); } catch (e) { /* antes da definição */ }
+  }
   // Confere um arquivo de cópia antes de importar. Devolve {ok, motivo?, piratas:[nomes], entregas}.
   // Um arquivo errado (outro app, JSON truncado, pirata sem id) não pode apagar semanas de conquistas.
+  // Revisão de 25/11/2026 (auditoria): a versão anterior só olhava id, nome, log e gastos. Uma cópia
+  // com `missoes: null` passava, era gravada e a tela inicial quebrava ao filtrar as missões. Agora a
+  // estrutura inteira é conferida, campo a campo, com limites de tamanho. `v` acima do que este app
+  // conhece é recusado (cópia de versão futura); `v` ausente (cópias antigas) é aceito.
+  const BACKUP_V = 1, MAX_PIRATAS = 8, MAX_LOG = 20000;
+  const ehObj = x => x != null && typeof x === 'object' && !Array.isArray(x);
+  const numOuNulo = x => x == null || (typeof x === 'number' && isFinite(x));
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
   function validarBackup(j) {
-    if (!j || typeof j !== 'object' || !j.state || !Array.isArray(j.state.piratas)) return { ok: false, motivo: 'formato' };
-    const ps = j.state.piratas;
+    const nao = () => ({ ok: false, motivo: 'formato' });
+    if (!ehObj(j) || !ehObj(j.state) || !Array.isArray(j.state.piratas)) return nao();
+    if (j.v != null && (typeof j.v !== 'number' || j.v > BACKUP_V)) return { ok: false, motivo: 'versao' };
+    const st = j.state, ps = st.piratas;
     if (!ps.length) return { ok: false, motivo: 'vazio' };
+    if (ps.length > MAX_PIRATAS) return nao();
+    if (st.ativo != null && typeof st.ativo !== 'string') return nao();
+    if (st.pin != null && typeof st.pin !== 'string') return nao();
+    if (st.apagados != null && !ehObj(st.apagados)) return nao();
+    const ids = new Set();
     for (const p of ps) {
-      if (!p || typeof p.id !== 'string' || typeof p.nome !== 'string') return { ok: false, motivo: 'formato' };
-      if (p.log != null && !Array.isArray(p.log)) return { ok: false, motivo: 'formato' };
-      if (p.gastos != null && !Array.isArray(p.gastos)) return { ok: false, motivo: 'formato' };
-      if ((p.log || []).some(r => !r || typeof r.m !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.d || '') || typeof r.c !== 'number')) return { ok: false, motivo: 'formato' };
+      if (!ehObj(p) || typeof p.id !== 'string' || !p.id || typeof p.nome !== 'string') return nao();
+      if (ids.has(p.id)) return nao(); ids.add(p.id);
+      if (p.tesouro != null && typeof p.tesouro !== 'string') return nao();
+      if (p.missoes != null && (!Array.isArray(p.missoes) || p.missoes.some(m => !ehObj(m) || (m.custom ? typeof m.txt !== 'string' : typeof m.id !== 'string')))) return nao();
+      if (p.premios != null && !ehObj(p.premios)) return nao();
+      if (!numOuNulo(p.telaMin) || !numOuNulo(p.viagemBase) || !numOuNulo(p.viagens)) return nao();
+      if (p.escola != null && (!ehObj(p.escola) || (p.escola.comb != null && !Array.isArray(p.escola.comb)) || (p.escola.dias != null && !ehObj(p.escola.dias)))) return nao();
+      if (p.log != null && !Array.isArray(p.log)) return nao();
+      if (p.gastos != null && !Array.isArray(p.gastos)) return nao();
+      if ((p.log || []).length > MAX_LOG) return nao();
+      if ((p.log || []).some(r => !ehObj(r) || typeof r.m !== 'string' || !ISO.test(r.d || '') || typeof r.c !== 'number' || !isFinite(r.c) || !numOuNulo(r.b))) return nao();
+      if ((p.gastos || []).some(g => !ehObj(g) || typeof g.c !== 'number' || !isFinite(g.c) || g.c < 0 || (g.d != null && !ISO.test(g.d)))) return nao();
     }
     return { ok: true, piratas: ps.map(p => p.nome || '?'), entregas: ps.reduce((s, p) => s + (p.log || []).length, 0) };
   }
   // Importar um arquivo exportado substitui tudo: carimbos novos para que vença em qualquer aba.
+  // Operação atômica (revisão de 25/11/2026): o estado novo é montado À PARTE, o atual vai para
+  // `mtp_state_bak`, e só depois de a gravação confirmar é que a memória troca. Se o navegador
+  // recusar gravar, tela e armazenamento continuam com o perfil anterior e a função devolve false.
+  // A cópia anterior pode ser recuperada em Ajustes e é removida por "Apagar tudo".
   function importar(st) {
-    state.piratas.forEach(p => lapide(chavePirata(p.id)));
     const agora = Date.now() + 1; // depois das lápides: o que entra é mais novo do que o que saiu
     const base = () => ({ missoes: [], premios: { 5: '', 10: '', 20: '' }, telaMin: 15, viagemBase: 0, viagens: 1, escola: { comb: ['', ''], dias: {} } });
-    state.piratas = (st.piratas || []).map(p => Object.assign(base(), p, { t: agora, _t: agora, log: (p.log || []).map(r => Object.assign({}, r, { t: agora })), gastos: (p.gastos || []).map(g => Object.assign({}, g, { t: g.t || agora })) }));
-    state.piratas.forEach(p => { [...new Set(p.log.map(x => x.m))].forEach(mid => recalcMissao(p, mid)); podarGastos(p); });
-    state.ativo = st.ativo || (state.piratas[0] || {}).id || null;
-    state.pin = st.pin || ''; state.pinT = agora;
-    save();
+    const semNulos = p => { const o = {}; Object.keys(p).forEach(k => { if (p[k] != null) o[k] = p[k]; }); return o; }; // null não pode vencer o padrão
+    const novo = { piratas: [], ativo: null, pin: '', pinT: agora, apagados: Object.assign({}, state.apagados) };
+    state.piratas.forEach(p => { novo.apagados[chavePirata(p.id)] = agora - 1; });
+    novo.piratas = (st.piratas || []).map(p => Object.assign(base(), semNulos(p), { t: agora, _t: agora, log: (p.log || []).map(r => Object.assign({}, r, { t: agora })), gastos: (p.gastos || []).map(g => Object.assign({}, g, { t: g.t || agora })) }));
+    novo.piratas.forEach(p => { p.missoes = (p.missoes || []).filter(m => m && (m.custom ? m.txt : MISSOES.some(x => x.id === m.id))); [...new Set(p.log.map(x => x.m))].forEach(mid => recalcMissao(p, mid)); podarGastos(p); });
+    novo.ativo = (novo.piratas.some(p => p.id === st.ativo) ? st.ativo : (novo.piratas[0] || {}).id) || null;
+    novo.pin = typeof st.pin === 'string' ? st.pin : '';
+    novo._rev = novaRev();
+    const anterior = LS.get('state', null);
+    if (anterior != null && !LS.set('state_bak', anterior)) return false; // sem espaço nem para a salvaguarda: não mexe em nada
+    if (!LS.setJson('state', novo)) { LS.del('state_bak'); return false; }
+    Object.keys(state).forEach(k => delete state[k]); Object.assign(state, novo);
+    LS.set('state_bak_t', agora);
+    return true;
   }
+  // Cópia anterior à última importação: existe, quando foi feita e como voltar para ela.
+  const BAK = {
+    existe: () => LS.get('state_bak', null) != null,
+    quando: () => parseInt(LS.get('state_bak_t', '0'), 10) || 0,
+    apagar() { LS.del('state_bak'); LS.del('state_bak_t'); },
+    restaurar() {
+      const j = LS.json('state_bak', null);
+      if (!j || !Array.isArray(j.piratas)) return false;
+      const v = validarBackup({ v: BACKUP_V, state: j });
+      if (!v.ok) return false;
+      if (!importar(j)) return false;
+      this.apagar(); // voltar é caminho de saída: depois disso o botão some, e a cópia importada por engano não fica guardada
+      return true;
+    }
+  };
   // Lembrete de cópia: sem servidor, a cópia exportada é a única salvaguarda. Lembramos quando há
   // conquistas acumuladas (≥ 10 entregas) e a última cópia tem mais de 14 dias (ou nunca foi feita).
   const BACKUP = {
@@ -389,7 +450,7 @@
   }
 
   // ---- API interna para rotas.js ----
-  window.MTP = { CFG, BRAND, $, esc, el, LS, t, HOJE, diaLocal, diaMais, setLang, nomeMissao, nomeRec, isPremium, setPremium, LIMITES, validarCodigo, state, save, salvarPirata, setPin, removerPirata, resetar, validarBackup, importar, BACKUP, sincronizar, pirataAtivo, novoPirata, ganhas, gastas, saldo, casa, casaVisivel, entregue, diasSeguidos, entregar, podeDesfazer, desfazer, gastar, recalcMissao, atualizaMoedas, feedback, confetti, moedaSom, gateOK, abrirGate, fecharGate, routes, go, back, setTitle, mapaHTML, aplicaEstaticos, LEMBRETE, nivel, NIVEIS };
+  window.MTP = { CFG, BRAND, $, esc, el, LS, t, HOJE, diaLocal, diaMais, setLang, nomeMissao, nomeRec, isPremium, setPremium, LIMITES, validarCodigo, state, save, salvarPirata, setPin, removerPirata, resetar, validarBackup, importar, BACKUP, BAK, sincronizar, pirataAtivo, novoPirata, ganhas, gastas, saldo, casa, casaVisivel, entregue, diasSeguidos, entregar, podeDesfazer, desfazer, gastar, recalcMissao, atualizaMoedas, feedback, confetti, moedaSom, gateOK, abrirGate, fecharGate, routes, go, back, setTitle, mapaHTML, aplicaEstaticos, LEMBRETE, nivel, NIVEIS };
 
   // ---- início ----
   document.documentElement.lang = LOCALE_IDIOMA[LANG];

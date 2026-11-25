@@ -12,12 +12,22 @@ const ASSETS = ['./', './index.html', './manifest.json', './config.js', './css/s
   // fora do cache inicial até 05/10/2026 e a família offline não via o certificado no dia do tesouro.
   './img/certificado.png', './img/pirata-em-missao.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())); });
-self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+// Limpeza restrita ao prefixo deste app (revisão de 25/11/2026). Antes apagava TODO cache da origem
+// com nome diferente do atual; no GitHub Pages a origem é compartilhada por todos os projetos do
+// usuário, e o Mapa do Tesouro apagava o cache dos outros.
+const PREFIXO = 'tesouro-v';
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith(PREFIXO) && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 // ignoreSearch: um "?v=" ou "?lang=pt" na URL não pode impedir o match com o arquivo guardado.
 const doCache = req => caches.match(req, { ignoreSearch: true });
+// config.js e codigos.json: rede primeiro, mas só uma resposta boa (2xx) substitui a guardada, e um
+// erro HTTP (500, 404 temporário) devolve a última boa em vez de entregar o erro ao app.
+const redePrimeiro = req => fetch(req).then(r => {
+  if (r && r.ok) { const c = r.clone(); caches.open(CACHE).then(x => x.put(req, c)); return r; }
+  return doCache(req).then(cached => cached || r);
+}).catch(() => doCache(req).then(cached => cached || new Response('', { status: 504, statusText: 'offline' })));
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
-  if (/codigos\.json$|config\.js$/.test(url.pathname)) { e.respondWith(fetch(e.request).then(r => { const c = r.clone(); caches.open(CACHE).then(x => x.put(e.request, c)); return r; }).catch(() => doCache(e.request))); return; }
+  if (/codigos\.json$|config\.js$/.test(url.pathname)) { e.respondWith(redePrimeiro(e.request)); return; }
   e.respondWith(doCache(e.request).then(cached => cached || fetch(e.request).then(resp => { if (resp && resp.ok && url.origin === location.origin) { const copy = resp.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); } return resp; }).catch(() => { if (e.request.mode === 'navigate') return caches.match('./index.html'); return new Response('', { status: 504, statusText: 'offline' }); })));
 });

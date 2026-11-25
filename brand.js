@@ -105,8 +105,19 @@
   if (C.priceAfterLabel) document.querySelectorAll('[data-price-after]').forEach(e => { e.textContent = C.priceAfterLabel; });
   if (C.launchUntil) document.querySelectorAll('[data-launch-until]').forEach(e => { e.textContent = C.launchUntil; });
   else document.querySelectorAll('[data-launch-wrap]').forEach(e => e.remove());
+  // Botão de compra (revisão de 25/11/2026): sem checkoutUrl, o botão não pode prometer "comprar" e
+  // levar à oferta ou a um caminho absoluto que quebra em hospedagem sob subpasta. Vira "Experimentar
+  // grátis" e aponta para o app com caminho relativo à página (/quiz/ → ../app/, raiz → app/).
+  const appRel = /\/quiz\/?$|\/quiz\/[^/]*$/.test(location.pathname) ? '../app/' : 'app/';
   document.querySelectorAll('[data-checkout]').forEach(a => {
-    a.href = C.checkoutUrl || '/app/'; if (!C.checkoutUrl) a.dataset.semCheckout = '1';
+    if (C.checkoutUrl) { a.href = C.checkoutUrl; a.target = '_blank'; a.rel = 'noopener'; }
+    else if (/^#/.test(a.getAttribute('href') || '')) { a.dataset.semCheckout = '1'; } // "Quero o mapa" no topo leva à oferta, onde o preço e o botão real estão
+    else { // o botão da oferta não pode levar à própria oferta
+      a.href = appRel; a.dataset.semCheckout = '1';
+      const txt = [...a.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+      const rotulo = a.dataset.semCheckoutLabel || 'Experimentar grátis';
+      if (txt) txt.textContent = rotulo + ' '; else a.textContent = rotulo;
+    }
     a.addEventListener('click', () => { if (ativa && C.checkoutUrl) window.fbq('track', 'InitiateCheckout', { value: C.priceValue || 47, currency: C.priceCurrency || 'BRL' }); });
   });
   if (C.contactEmail) document.querySelectorAll('[data-contact]').forEach(a => { a.href = 'mailto:' + C.contactEmail; a.textContent = C.contactEmail; });

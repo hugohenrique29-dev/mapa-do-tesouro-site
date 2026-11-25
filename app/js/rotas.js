@@ -49,7 +49,7 @@
         <label class="lbl">${esc(t('r_mid'))}</label><input class="in" id="ob-r10" maxlength="60" placeholder="${esc(ideia(1))}">
         <p class="muted small">${esc(t('r_big'))}: <b id="ob-r20">—</b></p></div>
       <div class="card contrato" id="ob-contrato"><h2>${esc(t('ob_contract'))}</h2><p id="ob-ctext"></p>
-        <div class="btn-row"><div class="sig" id="sig-p">${esc(t('sign_pirate'))}</div><div class="sig" id="sig-c">${esc(t('sign_captain'))}</div></div><p class="muted small center">${esc(t('sign_hint'))}</p></div>
+        <div class="btn-row"><button type="button" class="sig" id="sig-p" aria-pressed="false">${esc(t('sign_pirate'))}</button><button type="button" class="sig" id="sig-c" aria-pressed="false">${esc(t('sign_captain'))}</button></div><p class="muted small center">${esc(t('sign_hint'))}</p></div>
       <div class="btn-row"><button class="btn btn-gold full" id="ob-ok" disabled>${esc(t('start'))}</button></div><p class="muted small center" id="ob-msg"></p>
       ${foot()}</div>`);
     const cats = w.querySelector('#ob-cats');
@@ -83,7 +83,9 @@
       msg.textContent = sel.size < 3 ? t('ob_min') : '';
     }
     nome.addEventListener('input', atualiza); tes.addEventListener('input', atualiza);
-    const assina = (id, k, get, set) => w.querySelector(id).addEventListener('click', e => { set(!get()); e.currentTarget.classList.toggle('on', get()); e.currentTarget.textContent = t(k) + (get() ? ' · ' + t('signed') : ''); atualiza(); });
+    // Assinaturas são <button> (revisão de 25/11/2026): antes eram <div> só com clique, e quem navega
+    // por teclado ou leitor de tela não conseguia concluir o cadastro. aria-pressed diz o estado.
+    const assina = (id, k, get, set) => w.querySelector(id).addEventListener('click', e => { set(!get()); e.currentTarget.classList.toggle('on', get()); e.currentTarget.setAttribute('aria-pressed', String(get())); e.currentTarget.textContent = t(k) + (get() ? ' · ' + t('signed') : ''); atualiza(); });
     assina('#sig-p', 'sign_pirate', () => assinP, v => { assinP = v; }); assina('#sig-c', 'sign_captain', () => assinC, v => { assinC = v; });
     w.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => { M.setLang(b.dataset.lang); go('onboarding', arg, true); }));
     ok.addEventListener('click', () => {
@@ -308,7 +310,7 @@
     const p = M.pirataAtivo(); if (!p) return go('onboarding', null, true);
     setTitle(t('v_title'));
     const w = el(`<div>${sign(t('v_title'))}<div class="card">
-      <div class="list"><div class="item">${img('moeda-cumprida')}<div class="tx">${esc(t('v_missao'))}</div><b>1</b></div><div class="item">${img('moeda-esforco')}<div class="tx">${esc(t('v_dificil'))}</div><b>2</b></div><div class="item">${img('moeda-rara')}<div class="tx">${esc(t('v_rara'))}</div><b>×2</b></div></div>
+      <div class="list"><div class="item">${img('moeda-cumprida')}<div class="tx">${esc(t('v_missao'))}</div><b>1</b></div><div class="item">${img('moeda-esforco')}<div class="tx">${esc(t('v_dificil'))}</div><b>2</b></div><div class="item">${img('moeda-rara')}<div class="tx">${esc(t('v_rara'))}</div><b>×2</b></div></div><p class="muted small">${esc(t('v_rara_retro'))}</p>
       <h3>${esc(t('v_prizes'))}</h3><div class="list" id="v-prizes"></div>
       <ol style="padding-left:20px;line-height:1.5"><li>${esc(t('v_rule1'))}</li><li>${esc(t('v_rule2'))}</li><li>${esc(t('v_rule3'))}</li></ol></div>
       <div class="card"><h3>${esc(t('v_ideas'))}</h3><div class="chips">${RECOMPENSAS.map(r => `<span class="chip tag">${img(r.img || 'ic-star')}${esc(r.t[LANG])}</span>`).join('')}</div>
@@ -470,6 +472,8 @@
       <label class="lbl">${esc(t('set_copy'))}</label>
       <p class="muted small">${esc(t('set_privacy'))} ${esc(t('set_copy_hint'))}</p>
       <div class="btn-row"><button class="btn btn-ghost" id="st-exp">${esc(t('set_export'))}</button>${navigator.share ? `<button class="btn btn-ghost" id="st-share">${esc(t('set_share'))}</button>` : ''}<label class="btn btn-ghost" style="text-align:center">${esc(t('set_import'))}<input type="file" accept="application/json" id="st-imp" hidden></label></div>
+      ${M.BAK.existe() ? `<p class="muted small">${esc(t('bak_hint', { d: new Date(M.BAK.quando()).toLocaleString(LOCALE_IDIOMA[LANG], { dateStyle: 'short', timeStyle: 'short' }) }))}</p><div class="btn-row"><button class="btn btn-ghost full" id="st-bak">${esc(t('bak_btn'))}</button></div>` : ''}
+      <p class="muted small">${esc(t('set_reset_scope'))}</p>
       <div class="btn-row"><button class="btn btn-red full" id="st-reset">${esc(t('set_reset'))}</button></div></div>${foot()}</div>`);
     w.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => { M.setLang(b.dataset.lang); go('settings', null, true); }));
     w.querySelector('#st-pin').addEventListener('change', e => { const v = e.target.value.replace(/\D/g, '').slice(0, 4); M.setPin(v.length === 4 ? v : ''); e.target.value = M.state.pin; });
@@ -497,6 +501,7 @@
     // Mesma cópia, pela folha de compartilhar do celular (WhatsApp, e-mail, AirDrop): é o jeito
     // simples de levar o mapa para o celular do outro responsável, sem conta nem servidor.
     const sh = w.querySelector('#st-share'); if (sh) sh.addEventListener('click', async () => {
+      if (!confirm(t('set_share_warn'))) return; // a cópia leva nome, moedas e PIN: avisar antes de sair do aparelho
       try { const f = new File([M.BACKUP.gerar()], nomeCopia(), { type: 'application/json' });
         if (navigator.canShare && !navigator.canShare({ files: [f] })) throw new Error('arquivo');
         await navigator.share({ files: [f], title: M.BRAND, text: t('set_share_text') }); }
@@ -504,10 +509,17 @@
     });
     w.querySelector('#st-imp').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; let j = null; try { j = JSON.parse(await f.text()); } catch (err) { j = null; }
       const v = M.validarBackup(j); e.target.value = '';
-      if (!v.ok) { M.feedback('pergaminho-mapa', t(v.motivo === 'vazio' ? 'imp_empty' : 'imp_bad'), '', 3000); return; }
+      if (!v.ok) { M.feedback('pergaminho-mapa', t(v.motivo === 'vazio' ? 'imp_empty' : v.motivo === 'versao' ? 'imp_newer' : 'imp_bad'), '', 3000); return; }
       const atuais = M.state.piratas.map(p => p.nome).join(', ') || '—';
       if (!confirm(t('imp_confirm', { novos: v.piratas.join(', '), n: v.entregas, atuais }))) return;
-      M.importar(j.state); M.atualizaMoedas(); M.feedback('bau', t('imp_done', { n: v.entregas }), '', 2200); go('parent', null, true); });
+      // Só anuncia sucesso depois de a gravação confirmar; se falhou, nada mudou (nem na tela nem no disco).
+      if (!M.importar(j.state)) { M.feedback('pergaminho-mapa', t('imp_fail'), '', 4000); return; }
+      M.atualizaMoedas(); M.feedback('bau', t('imp_done', { n: v.entregas }), '', 2200); go('parent', null, true); });
+    const bak = w.querySelector('#st-bak'); if (bak) bak.addEventListener('click', () => {
+      if (!confirm(t('bak_confirm'))) return;
+      if (!M.BAK.restaurar()) { M.feedback('pergaminho-mapa', t('imp_fail'), '', 4000); return; }
+      M.atualizaMoedas(); M.feedback('bau', t('bak_done'), '', 2200); go('parent', null, true);
+    });
     w.querySelector('#st-reset').addEventListener('click', () => { if (!confirm(t('set_reset_confirm'))) return; M.resetar(); M.fecharGate(); M.atualizaMoedas(); go('onboarding', null, true); });
     $('screen').appendChild(w);
   };

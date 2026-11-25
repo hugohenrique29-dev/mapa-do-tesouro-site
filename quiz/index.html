@@ -5,7 +5,7 @@
 <title>{b} — as primeiras missões do seu pirata</title><meta name="robots" content="noindex">
 <link rel="stylesheet" href="../app/fonts/fonts.css"><link rel="stylesheet" href="../site.css"><link rel="icon" href="../app/icons/favicon-48.png">
 <style>body{background-image:url(../app/img/fundo.jpg)}.sign{background-image:url(../app/img/placa.png)}</style>
-<script src="../app/config.js"></script>
+<script src="../app/config.js"></script><script src="../app/js/data.js"></script>
 </head>
 <body>
 <header class="top"><a class="logo" href="../" aria-label="Mapa do Tesouro"><img src="../app/img/logo.png" alt="Mapa do Tesouro · Missão Pirata"></a><span class="muted">Cinco perguntas, dois minutos</span></header>
@@ -30,7 +30,7 @@
     <ol id="r-list" style="padding-left:20px"></ol>
     <p class="muted" style="margin-top:10px" id="r-extra"></p>
     <div class="price" style="margin-top:16px;padding:14px;border-radius:18px"><div class="old" data-anchor></div><div class="now" data-price>R$ 47</div><small>Pagamento único · app + kit de 31 páginas para imprimir · 7 dias para desistir, conforme o Código de Defesa do Consumidor</small>
-      <a class="btn btn-warn full" data-checkout href="../app/">Quero o acesso completo</a></div>
+      <a class="btn btn-warn full" data-checkout data-sem-checkout-label="Experimentar grátis" href="../app/">Quero o acesso completo</a></div>
     <p class="center" style="margin-top:12px"><a class="btn btn-ghost" id="r-demo" href="../app/">Começar pela versão gratuita, sem compromisso</a></p>
   </div>
 </div>
@@ -39,18 +39,24 @@
 <script>
 (function(){
   const qs=[...document.querySelectorAll('.q[data-q]:not(#res)')]; const resp={}; let i=0; const bar=document.getElementById('bar');
-  function show(n){ qs.forEach((q,k)=>q.classList.toggle('on',k===n)); document.getElementById('res').classList.toggle('on',n>=qs.length); bar.style.width=Math.round(100*Math.min(n,qs.length)/qs.length)+'%'; window.scrollTo(0,0); if(n>=qs.length) resultado(); }
+  function show(n){ qs.forEach((q,k)=>q.classList.toggle('on',k===n)); document.getElementById('res').classList.toggle('on',n>=qs.length); bar.style.width=Math.round(100*Math.min(n,qs.length)/qs.length)+'%'; window.scrollTo(0,0); if(n>=qs.length) resultado();
+    // Foco no título da pergunta (ou do resultado) que acabou de aparecer: leitor de tela e teclado seguem o fluxo.
+    const h=(n<qs.length?qs[n]:document.getElementById('res')).querySelector('h2'); if(h&&n>0){ h.setAttribute('tabindex','-1'); h.focus({preventScroll:true}); } }
   qs.forEach((q,k)=>q.querySelectorAll('.opt').forEach(o=>o.addEventListener('click',()=>{ resp[k]=o.dataset.v; i=k+1; show(i); })));
   function resultado(){
     // Índices: 0 idade · 1 momento · 2 atrito · 3 diagnóstico · 4 idioma. Cada resposta muda o resultado.
     const faixa=resp[0]||'2', mom=resp[1]||'manha', atr=resp[2]||'nada', diag=resp[3]||'nao', lang=resp[4]||'pt';
-    const M={ manha:['Arrumar a cama','Escovar os dentes de manhã','Sair de casa no horário'], escola:['Arrumar a mochila','Fazer o dever de casa','Mostrar a agenda da escola'], casa:['Guardar os brinquedos','Ajudar a pôr a mesa','Organizar os materiais'], noite:['Tomar banho sem discussão','Escovar os dentes à noite','Ir para a cama no horário'] };
-    let lista=M[mom].slice();
-    const A={ tela:'Desligar a tela quando o tempo acabar', calma:'Falar com calma', esperar:'Esperar a vez de falar' };
-    if(A[atr]) lista=[A[atr]].concat(lista.slice(0,2));
-    if(faixa==='1') lista=lista.map(x=>x.replace('Fazer o dever de casa','Guardar os brinquedos').replace('Mostrar a agenda da escola','Vestir a roupa sozinho'));
-    if(faixa==='3') lista=lista.map(x=>x.replace('Guardar os brinquedos','Cuidar do bichinho ou da própria mochila').replace('Arrumar a cama','Arrumar o quarto'));
-    lista=[...new Set(lista)].slice(0,3);
+    // Sugestões por ID do catálogo do app (app/js/data.js, carregado acima). O rótulo mostrado aqui é o
+    // mesmo que a família vai ver no app: antes havia um dicionário de textos à parte, e em 72 das 432
+    // combinações o nome mudava no caminho ("Arrumar o quarto" chegava como "Arrumar a cama").
+    const M={ manha:['cama','dentes_m','horario'], escola:['mochila','tarefa','agenda'], casa:['brinquedos','mesa','materiais'], noite:['banho','dentes_n','dormir'] };
+    let ids=M[mom].slice();
+    const A={ tela:'tela_off', calma:'calma', esperar:'esperar' };
+    if(A[atr]) ids=[A[atr]].concat(ids.slice(0,2));
+    if(faixa==='1') ids=ids.map(x=>x==='tarefa'?'brinquedos':x==='agenda'?'roupa':x);
+    if(faixa==='3') ids=ids.map(x=>x==='brinquedos'?'pet':x);
+    ids=[...new Set(ids)].filter(id=>MISSOES.some(m=>m.id===id)).slice(0,3);
+    const lista=ids.map(id=>MISSOES.find(m=>m.id===id).t.pt);
     const nomes={1:'4 a 5 anos',2:'6 a 8 anos',3:'9 anos ou mais'};
     document.getElementById('r-title').textContent='Três primeiras missões para '+nomes[faixa];
     // Coerente com a página de vendas (sem faixa fechada): para 9+ o método serve, mas o visual é infantil. Dizemos isso em vez de fingir que é para 12.
@@ -59,12 +65,10 @@
     document.getElementById('r-body').textContent=(diag==='sim'?'Para crianças com TDAH ou TOD, o kit tem uma versão própria: poucas missões por vez, moeda na hora, apoio visual e previsibilidade. Para o TEA, o bônus de regulação emocional traz orientações específicas, e o método é o mesmo. ':diag==='ns'?'Na dúvida, o caminho é o mesmo para qualquer criança: poucas missões, moeda na hora e previsibilidade. Se a dúvida ficar, vale conversar com um profissional. ':'')+'Comecem com três missões na primeira semana. As outras entram depois, uma de cada vez, conforme a rotina pedir. O app vai funcionar em '+({pt:'português',es:'espanhol',en:'inglês'}[lang])+'.';
     document.getElementById('r-list').innerHTML=lista.map(x=>'<li>'+x+'</li>').join('');
     document.getElementById('r-extra').textContent=(atr==='calma'?'Para a hora da birra, a Ilha da Calma traz dez caminhos para a criança se acalmar, e ela já vem liberada na versão gratuita. ':atr==='tela'?'Sobre a tela: a Missão Telas transforma a briga em combinado. Vocês definem quantos minutos vale uma moeda, e esse número vale a semana inteira. ':'')+'Combinem o prêmio antes de começar. Experiências valem mais do que coisas: um passeio, uma noite de filme, um tempo só de vocês.';
-    // As três missões sugeridas vão para o app já marcadas (ids do catálogo em app/js/data.js), para
-    // a família não escolher tudo de novo. Textos sem id no catálogo ficam só na lista daqui.
-    const IDS={'Arrumar a cama':'cama','Escovar os dentes de manhã':'dentes_m','Sair de casa no horário':'horario','Arrumar a mochila':'mochila','Fazer o dever de casa':'tarefa','Mostrar a agenda da escola':'agenda','Guardar os brinquedos':'brinquedos','Ajudar a pôr a mesa':'mesa','Organizar os materiais':'materiais','Tomar banho sem discussão':'banho','Escovar os dentes à noite':'dentes_n','Ir para a cama no horário':'dormir','Desligar a tela quando o tempo acabar':'tela_off','Falar com calma':'calma','Esperar a vez de falar':'esperar','Vestir a roupa sozinho':'roupa','Cuidar do bichinho ou da própria mochila':'pet','Arrumar o quarto':'cama'};
-    const ids=[...new Set(lista.map(x=>IDS[x]).filter(Boolean))];
+    // As três missões vão para o app já marcadas, para a família não escolher tudo de novo.
     const demo=document.getElementById('r-demo'); demo.href='../app/?lang='+lang+(ids.length?'&m='+ids.join(','):'');
-    try{ localStorage.setItem('mtp_quiz',JSON.stringify(resp)); }catch(e){} // as respostas ficam só neste aparelho
+    // Nada é gravado: a resposta sobre diagnóstico só serve para montar este resultado e fica na memória da página.
+    try{ localStorage.removeItem('mtp_quiz'); }catch(e){} // limpa o que versões anteriores guardavam
     /* Sem Pixel da Meta nesta página, de propósito: as respostas falam da criança (idade, diagnóstico). brand.js bloqueia /quiz/ mesmo com aceite. */
   }
   show(0);

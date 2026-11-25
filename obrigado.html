@@ -4,8 +4,10 @@
 <link rel="stylesheet" href="app/fonts/fonts.css"><link rel="stylesheet" href="site.css"><link rel="icon" href="app/icons/favicon-48.png"><script src="app/config.js"></script></head>
 <body data-medicao><header class="top"><a class="logo" href="./" aria-label="Mapa do Tesouro"><img src="app/img/logo.png" alt="Mapa do Tesouro · Missão Pirata"></a></header>
 <div class="wrap">
-  <div class="card center"><img src="app/icons/icon-192.png" alt="" style="width:96px;height:96px;border-radius:24px;margin:0 auto 8px;display:block"><h2>Compra confirmada. Obrigado por escolher o <span data-brand>Mapa do Tesouro</span>.</h2>
-    <p class="muted">O seu <b>código de ativação</b> será enviado por e-mail em alguns minutos. Se não o encontrar, verifique também a caixa de spam. Em seguida, siga os três passos abaixo.</p></div>
+  <!-- Texto neutro de propósito (auditoria de 25/11/2026): esta página não sabe se o pagamento foi
+       aprovado. Quem confirma é o e-mail da plataforma; um acesso direto a esta URL não pode anunciar compra. -->
+  <div class="card center"><img src="app/icons/icon-192.png" alt="" style="width:96px;height:96px;border-radius:24px;margin:0 auto 8px;display:block"><h2>Obrigado por escolher o <span data-brand>Mapa do Tesouro</span>.</h2>
+    <p class="muted">Assim que o pagamento for aprovado, a plataforma envia por e-mail o <b>código de ativação</b> e o kit em PDF. No cartão, isso leva alguns minutos; no Pix, acontece logo depois que o banco confirma. Se não encontrar, verifique também a caixa de spam. Com o e-mail em mãos, siga os quatro passos abaixo.</p></div>
   <div class="card"><div class="steps">
     <div class="step"><b>1</b><div><strong>No celular ou no tablet que a criança vai usar</strong>, abra <a href="app/" id="link-app">este link</a> e toque em “Adicionar à tela inicial” (no iPhone: Compartilhar → Adicionar à Tela de Início; no Android: menu ⋮ → Instalar app).</div></div>
     <div class="step"><b>2</b><div>Abra o app e toque no ⚓ do <strong>Painel do Capitão</strong>. O app pede a resposta de uma conta simples para confirmar que é um adulto. Depois, toque em <strong>Acesso completo</strong> e em <strong>Já tenho um código</strong>.</div></div>
@@ -33,9 +35,13 @@ try{
    plataforma de checkout. PENDENTE (conferir no painel da Cakto antes de ligar o Pixel): se a Cakto
    só redireciona para esta página depois do pagamento confirmado (Pix pago, não apenas gerado) e
    com quais nomes de parâmetro. Deduplicado por transação via localStorage e com eventID p/ a API de Conversões. */
+/* DESLIGADO em 25/11/2026 (auditoria): um identificador com formato plausível na URL não prova
+   pagamento aprovado (o Pix gerado também redireciona). Só religar (purchaseAtivo em config.js) depois
+   de confirmar no painel da Cakto quando esta página é chamada e com que parâmetro, e de preferência
+   com o valor real do pedido vindo da plataforma. */
 try{
   var C=window.APP_CONFIG||{}, tid=mtpTid;
-  if(tid&&window.mtpMedicao) mtpMedicao.quandoAtiva(function(fbq){
+  if(C.purchaseAtivo&&tid&&window.mtpMedicao) mtpMedicao.quandoAtiva(function(fbq){
     try{ if(localStorage.getItem('mtp_purchase_'+tid)!=null) return; }catch(e){}
     fbq('track','Purchase',{value:C.priceValue||47,currency:C.priceCurrency||'BRL'},{eventID:tid});
     try{ localStorage.setItem('mtp_purchase_'+tid,'1'); }catch(e){}

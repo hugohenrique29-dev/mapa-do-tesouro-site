@@ -638,7 +638,7 @@ self.APP_CONFIG = {
       <div class="preco"><small>R$</small><span data-price-num>47</span></div>
       <div class="cond">à vista, uma única vez · Pix ou cartão</div>
       <div class="dia">Menos que um mês de app de rotina por assinatura, para usar o ano inteiro</div>
-      <a class="cta" data-checkout href="#oferta">Quero o Mapa do Tesouro <svg width="22" height="22"><use href="#i-seta"/></svg></a>
+      <a class="cta" data-checkout data-sem-checkout-label="Experimentar grátis enquanto a compra não abre" href="app/">Quero o Mapa do Tesouro <svg width="22" height="22"><use href="#i-seta"/></svg></a>
       <div class="selos">
         <span><svg width="18" height="18"><use href="#i-raio"/></svg>Acesso imediato</span>
         <span><svg width="18" height="18"><use href="#i-cadeado"/></svg>Compra segura</span>
@@ -713,7 +713,7 @@ self.APP_CONFIG = {
   <div class="w estreito">
     <h2>O próximo pedido pode ser o último que você repete</h2>
     <p>Hoje à noite, 10 minutos: imprimir o mapa, escolher o tesouro e assinar o contrato. Amanhã de manhã, a primeira casa do mapa está esperando pela criança.</p>
-    <a class="cta" data-checkout href="#oferta">Quero o Mapa do Tesouro <svg width="22" height="22"><use href="#i-seta"/></svg></a>
+    <a class="cta" data-checkout data-sem-checkout-label="Experimentar grátis" href="app/">Quero o Mapa do Tesouro <svg width="22" height="22"><use href="#i-seta"/></svg></a>
     <div class="selos">
       <span><svg width="18" height="18"><use href="#i-raio"/></svg><span data-price>R$ 47</span> à vista, só nesta página</span>
       <span><svg width="18" height="18"><use href="#i-escudo"/></svg>7 dias de garantia</span>
@@ -728,7 +728,7 @@ self.APP_CONFIG = {
 
 <div class="barra" aria-hidden="true">
   <div class="bp"><span data-price>R$ 47</span><small>preço de lançamento</small></div>
-  <a class="cta" data-checkout href="#oferta" tabindex="-1">Quero o mapa</a>
+  <a class="cta" data-checkout data-sem-checkout-label="Experimentar grátis" href="app/" tabindex="-1">Quero o mapa</a>
 </div>
 
 <script>
@@ -840,7 +840,9 @@ self.APP_CONFIG = {
   if (C.launchUntil) document.querySelectorAll('[data-launch-until]').forEach(e => { e.textContent = C.launchUntil; });
   else document.querySelectorAll('[data-launch-wrap]').forEach(e => e.remove());
   document.querySelectorAll('[data-checkout]').forEach(a => {
-    a.href = C.checkoutUrl || '#oferta'; if (!C.checkoutUrl) a.dataset.semCheckout = '1';
+    if (C.checkoutUrl) { a.href = C.checkoutUrl; a.target = '_blank'; a.rel = 'noopener'; }
+    else if (/^#/.test(a.getAttribute('href') || '')) { a.dataset.semCheckout = '1'; }
+    else { a.dataset.semCheckout = '1'; const txt = [...a.childNodes].find(n => n.nodeType === 3 && n.textContent.trim()); const rotulo = a.dataset.semCheckoutLabel || 'Experimentar grátis'; if (txt) txt.textContent = rotulo + ' '; else a.textContent = rotulo; }
     a.addEventListener('click', () => { if (ativa && C.checkoutUrl) window.fbq('track', 'InitiateCheckout', { value: C.priceValue || 47, currency: C.priceCurrency || 'BRL' }); });
   });
   if (C.contactEmail) document.querySelectorAll('[data-contact]').forEach(a => { a.href = 'mailto:' + C.contactEmail; a.textContent = C.contactEmail; });

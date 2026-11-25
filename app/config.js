@@ -4,7 +4,8 @@
 self.APP_CONFIG = {
   brand: 'Mapa do Tesouro',        // nome do app; todos os textos usam este valor
   subtitle: 'Missão Pirata',
-  version: '0.7.0',                // 20/10: lembrete no calendário (.ics), cópia para outro celular, primeiros passos, missões por momento do dia, patentes, diário de 4 semanas. Subir a versão invalida o cache do service worker
+  version: '0.7.1',                // 25/11: importação atômica com cópia anterior recuperável, "Apagar tudo" completo, assinaturas por teclado, SW só limpa o próprio prefixo, quiz pelo catálogo. Subir a versão invalida o cache do service worker
+  purchaseAtivo: false,            // evento Purchase do Pixel na página de retorno. Só ligar depois de confirmar na Cakto que /obrigado só é chamada com pagamento aprovado e com qual parâmetro
   siteLabel: 'mapadotesouro.app',  // CONFERIR: domínio precisa estar registrado (é impresso nas folhas)
   author: 'Psicóloga Roberta Leitão · CRP 10/08929',
   priceLabel: 'R$ 47',             // decisão em docs/modelo-e-preco.md
