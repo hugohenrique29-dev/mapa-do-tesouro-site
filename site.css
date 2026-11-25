@@ -1,0 +1,58 @@
+/* Site de venda e quiz — mesmo tema das pranchas do kit: céu, madeira, pergaminho, ouro */
+*{box-sizing:border-box}
+:root{--madeira:#7A4A1F;--madeira-esc:#4A2A0E;--madeira-clara:#A0653A;--perg:#FBF1D8;--perg-borda:#C9A264;--ouro:#F2B233;--ouro-esc:#C98A12;--vermelho:#D9433B;--vermelho-esc:#A82E27;--azul:#2E6FA8;--texto:#3A2A14}
+body{margin:0;font-family:'Baloo 2','Fredoka','Segoe UI',system-ui,sans-serif;background:#8FCDEF url(app/img/fundo.jpg) center top/cover no-repeat fixed;color:var(--texto);line-height:1.5}
+a{color:var(--azul)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;max-width:980px;margin:0 auto}
+.logo{display:flex;align-items:center;text-decoration:none;color:var(--madeira-esc);font-weight:800}
+.logo img{height:64px;width:auto;filter:drop-shadow(0 3px 4px rgba(0,0,0,.25))}
+.wrap{max-width:900px;margin:0 auto;padding:0 16px 40px}
+.hero{background:linear-gradient(180deg,var(--perg),#F5E6C2);border:3px solid var(--perg-borda);border-radius:22px;padding:22px;margin:8px 0 16px;display:grid;grid-template-columns:1fr;gap:12px;box-shadow:0 6px 16px rgba(20,60,90,.18)}
+@media(min-width:720px){.hero{grid-template-columns:1fr 260px;align-items:center}}
+.hero img.pirata{width:100%;max-width:260px;justify-self:center;filter:drop-shadow(0 4px 6px rgba(0,0,0,.25))}
+h1{font-size:1.8rem;line-height:1.2;margin:8px 0;color:var(--madeira-esc)}
+h1 em{font-style:normal;color:var(--vermelho)}
+h2{font-size:1.3rem;margin:0 0 8px;color:var(--madeira-esc)}
+h3{font-size:1.05rem;margin:14px 0 6px;color:var(--madeira)}
+.badge{display:inline-block;background:linear-gradient(180deg,#E24E45,#C4352D);color:#fff;font-weight:800;font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;padding:6px 14px;border-radius:6px;box-shadow:0 3px 0 var(--vermelho-esc)}
+.sign{display:flex;align-items:center;justify-content:center;background:url(app/img/placa.png) center/100% 100% no-repeat;aspect-ratio:4.2/1;min-height:70px;max-width:620px;margin:22px auto 12px;color:#FFF3D6;font-weight:800;font-size:1.35rem;text-align:center;padding:3% 12% 2%;text-shadow:0 2px 0 rgba(0,0,0,.45);filter:drop-shadow(0 6px 8px rgba(20,50,80,.28))}
+.card{background:linear-gradient(180deg,var(--perg),#F5E6C2);border:3px solid var(--perg-borda);border-radius:18px;padding:18px;margin:0 0 16px;box-shadow:0 6px 16px rgba(20,60,90,.18)}
+.muted{opacity:.78;font-size:.93rem}
+.center{text-align:center}
+.trust{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.trust span{background:#FFFDF7;border:2px solid var(--perg-borda);border-radius:999px;padding:4px 12px;font-size:.85rem;font-weight:700;color:var(--madeira-esc)}
+.btn{display:inline-block;border:3px solid var(--madeira-esc);font:inherit;font-weight:800;font-size:1rem;padding:11px 20px;border-radius:14px;cursor:pointer;background:linear-gradient(180deg,var(--madeira-clara),var(--madeira));color:#FFF7E6;box-shadow:0 4px 0 var(--madeira-esc);text-decoration:none;text-shadow:0 1px 0 rgba(0,0,0,.3)}
+.btn:active{transform:translateY(3px);box-shadow:none}
+.btn-primary{background:linear-gradient(180deg,#3F86C4,#2E6FA8);border-color:#1F4F80;box-shadow:0 4px 0 #1F4F80}
+.btn-warn{background:linear-gradient(180deg,#FFD35C,var(--ouro) 60%,#E09A1C);color:#4A2E00;border-color:var(--ouro-esc);box-shadow:0 4px 0 var(--ouro-esc);text-shadow:none}
+.btn-ghost{background:rgba(255,255,255,.55);color:var(--madeira-esc);border-color:var(--perg-borda);box-shadow:0 4px 0 var(--perg-borda);text-shadow:none}
+.btn.full{display:block;text-align:center}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.mod{background:#FFFDF7;border:2px solid var(--perg-borda);border-radius:14px;padding:10px 12px;font-weight:700;display:flex;gap:10px;align-items:center;font-size:.95rem}
+.mod img{width:44px;height:44px;border-radius:50%;flex:none}
+.steps{display:grid;gap:10px}
+.step{display:flex;gap:12px;align-items:flex-start}
+.step b{flex:none;width:36px;height:36px;border-radius:50%;background:url(app/img/moeda-ouro.png) center/contain no-repeat;color:transparent}
+.demo{background:linear-gradient(180deg,#E9F6FC,#D4EBF7);border:3px solid #8FC3D2;border-radius:18px;padding:18px;margin-bottom:16px;text-align:center}
+.price{text-align:center}
+.price .old{text-decoration:line-through;opacity:.6;min-height:1em}
+.price .now{font-size:2.6rem;font-weight:800;color:var(--madeira-esc);line-height:1}
+.price small{display:block;margin:6px 0 10px;opacity:.8}
+.price ul{text-align:left;padding-left:20px;margin:10px auto;max-width:520px}
+.faq details{border-top:1px solid var(--perg-borda);padding:8px 0}
+.faq summary{cursor:pointer;font-weight:800;color:var(--madeira-esc)}
+footer{text-align:center;font-size:.85rem;padding:14px 16px;margin:0 16px 40px;color:var(--madeira-esc);background:rgba(252,243,220,.88);border-radius:14px}
+.linkbtn{background:none;border:0;font:inherit;color:var(--azul);text-decoration:underline;cursor:pointer;padding:0}
+.aviso-medicao{position:fixed;left:12px;right:12px;bottom:12px;z-index:30;background:var(--perg);border:3px solid var(--perg-borda);border-radius:16px;padding:12px 14px;box-shadow:0 6px 16px rgba(20,60,90,.25);font-size:.9rem}
+.aviso-botoes{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+/* quiz */
+.bar{height:10px;background:rgba(255,255,255,.5);border:2px solid var(--perg-borda);border-radius:99px;overflow:hidden;margin:12px 0}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#FFD35C,var(--ouro));border-radius:99px;transition:width .3s}
+.q{display:none}.q.on{display:block}
+.opts{display:grid;gap:8px;margin-top:10px}
+.opt{display:flex;align-items:center;gap:10px;background:#FFFDF7;border:2px solid var(--perg-borda);border-radius:14px;padding:12px 14px;font:inherit;font-weight:700;font-size:1rem;cursor:pointer;text-align:left;color:var(--texto)}
+.opt:hover{border-color:var(--ouro)}
+.opt span{font-size:1.4rem;width:32px;text-align:center}
+.hero-pirata{display:flex;gap:10px;align-items:flex-end}
+.hero-pirata img{width:90px;height:auto;flex:none}
+.balao{flex:1;background:#FFFDF7;border:2px solid var(--perg-borda);border-radius:16px;padding:10px 12px;font-weight:700}

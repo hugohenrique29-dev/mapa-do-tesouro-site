@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{b} — obrigado! Ative o app</title><meta name="robots" content="noindex">
+<link rel="stylesheet" href="app/fonts/fonts.css"><link rel="stylesheet" href="site.css"><link rel="icon" href="app/icons/favicon-48.png"><script src="app/config.js"></script></head>
+<body data-medicao><header class="top"><a class="logo" href="./" aria-label="Mapa do Tesouro"><img src="app/img/logo.png" alt="Mapa do Tesouro · Missão Pirata"></a></header>
+<div class="wrap">
+  <div class="card center"><img src="app/icons/icon-192.png" alt="" style="width:96px;height:96px;border-radius:24px;margin:0 auto 8px;display:block"><h2>Compra confirmada. Obrigado por escolher o <span data-brand>Mapa do Tesouro</span>.</h2>
+    <p class="muted">O seu <b>código de ativação</b> será enviado por e-mail em alguns minutos. Se não o encontrar, verifique também a caixa de spam. Em seguida, siga os três passos abaixo.</p></div>
+  <div class="card"><div class="steps">
+    <div class="step"><b>1</b><div><strong>No celular ou no tablet que a criança vai usar</strong>, abra <a href="app/" id="link-app">este link</a> e toque em “Adicionar à tela inicial” (no iPhone: Compartilhar → Adicionar à Tela de Início; no Android: menu ⋮ → Instalar app).</div></div>
+    <div class="step"><b>2</b><div>Abra o app e toque no ⚓ do <strong>Painel do Capitão</strong>. O app pede a resposta de uma conta simples para confirmar que é um adulto. Depois, toque em <strong>Acesso completo</strong> e em <strong>Já tenho um código</strong>.</div></div>
+    <div class="step"><b>3</b><div>Digite o código recebido por e-mail (formato <code>MTP-XXXX-XXXX-XXXX</code>). Todo o conteúdo é liberado na hora, sem prazo de validade, e continua disponível sem internet.</div></div>
+    <div class="step"><b>4</b><div>No mesmo e-mail vai o <strong>kit de 31 páginas em PDF</strong>, para imprimir. Guarde esse e-mail: ele é o seu comprovante e o seu acesso ao kit.</div></div>
+  </div>
+  <p class="center" style="margin-top:14px"><a class="btn btn-primary" href="app/">Abrir o app</a></p>
+  <p class="muted center" style="margin-top:10px">Se precisar de ajuda, use o suporte da plataforma de pagamento<span data-contact-wrap> ou <a data-contact href="#">escreva para nós</a></span>.</p></div>
+</div>
+<footer><a href="privacidade.html">Privacidade</a> · <a href="termos.html">Termos</a><span data-medicao-prefs-wrap> · <button type="button" class="linkbtn" data-medicao-prefs>Alterar a escolha de medição</button></span></footer>
+<script>
+/* Antes de qualquer medição: guarda o identificador da transação e tira parâmetros e fragmento (#) da
+   barra de endereço. O Pixel envia à Meta o endereço da página, e o retorno do checkout pode trazer dados
+   do comprador (e-mail, nome); os Termos da Meta, item 1.h, (ii), vedam enviar contato sem hash. */
+var mtpTid=null;
+try{
+  var q=new URLSearchParams(location.search);
+  var t=q.get('transaction_id')||q.get('order_id')||q.get('sale_id')||q.get('tid');
+  if(t&&/^[A-Za-z0-9_-]{4,64}$/.test(t)) mtpTid=t; // só identificador com formato plausível vira eventID
+  if(location.search||location.hash) history.replaceState(null,'',location.pathname);
+}catch(e){}
+</script>
+<script src="brand.js"></script><script>
+/* Purchase: só com o aceite da medição (brand.js) e só quando a página chega com identificador da
+   plataforma de checkout. PENDENTE (conferir no painel da Cakto antes de ligar o Pixel): se a Cakto
+   só redireciona para esta página depois do pagamento confirmado (Pix pago, não apenas gerado) e
+   com quais nomes de parâmetro. Deduplicado por transação via localStorage e com eventID p/ a API de Conversões. */
+try{
+  var C=window.APP_CONFIG||{}, tid=mtpTid;
+  if(tid&&window.mtpMedicao) mtpMedicao.quandoAtiva(function(fbq){
+    try{ if(localStorage.getItem('mtp_purchase_'+tid)!=null) return; }catch(e){}
+    fbq('track','Purchase',{value:C.priceValue||47,currency:C.priceCurrency||'BRL'},{eventID:tid});
+    try{ localStorage.setItem('mtp_purchase_'+tid,'1'); }catch(e){}
+  });
+}catch(e){}
+</script>
+</body></html>

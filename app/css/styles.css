@@ -1,0 +1,214 @@
+/* ===== Mapa do Tesouro · Missão Pirata — tema das pranchas do kit (céu, madeira, papel, ouro) =====
+   Revisão visual de 09/10/2026. Princípios:
+   1. Nenhuma imagem é esticada fora da proporção nativa (a placa 1200×608 era forçada a 3,3:1 e
+      saía achatada em toda tela). Placa e fita agora são desenhadas em CSS: nítidas em qualquer
+      densidade de tela e crescem com o texto, em vez de o texto vazar.
+   2. Tamanhos de fonte com clamp(): títulos cabem em 360px e não ficam miúdos em 720px.
+   3. Ícones nunca são ampliados além do tamanho em que foram exportados (≈140px): máximo 56px lógicos.
+   4. Um ritmo só: --gap entre blocos, --raio nos cantos, --pad dentro dos cards. */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+:root{
+  --ceu1:#B9E3F7;--ceu2:#6FBBE6;--mar:#2F8FD0;--mar-esc:#1F6FAE;
+  --madeira:#7A4A1F;--madeira-esc:#4A2A0E;--madeira-clara:#A0653A;--madeira-luz:#C48B57;
+  --perg:#FBF1D8;--perg-esc:#EAD3A2;--perg-borda:#C9A264;--papel:#FFFDF7;
+  --ouro:#F2B233;--ouro-esc:#C98A12;--vermelho:#D9433B;--vermelho-esc:#A82E27;--verde:#3E9B5A;--verde-esc:#2A6B3A;--azul:#2E6FA8;
+  --texto:#3A2A14;--texto-2:#6B5336;--texto-claro:#FFF7E6;
+  --sombra:0 6px 16px rgba(20,60,90,.16);--raio:16px;--gap:14px;--pad:16px;
+}
+html{font-size:16px}
+html,body{height:100%}
+body{font-family:'Baloo 2','Fredoka','Segoe UI',system-ui,sans-serif;line-height:1.45;background:linear-gradient(180deg,var(--ceu1) 0%,#9AD3F0 55%,var(--ceu2) 100%);color:var(--texto);display:flex;flex-direction:column;user-select:none;-webkit-user-select:none}
+input,textarea{user-select:text;-webkit-user-select:text}
+/* Cena de fundo: o céu é gradiente CSS (sempre nítido); a praia do Canva (fundo.jpg, 786px) fica só
+   na faixa inferior, na largura real da tela, para não ser ampliada além do que aguenta. */
+#bg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:linear-gradient(180deg,var(--ceu1) 0%,#A6DAF4 45%,#8CCBEE 100%)}
+#bg::before{content:'';position:absolute;left:0;right:0;bottom:0;height:62%;background:url(../img/fundo.jpg) center bottom/cover no-repeat;opacity:.9;-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 28%);mask-image:linear-gradient(180deg,transparent 0%,#000 28%)}
+/* ---------- topo ---------- */
+#topbar{position:relative;z-index:2;display:flex;align-items:center;gap:8px;padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top))}
+#topbar .logo{flex:1;display:flex;align-items:center;justify-content:center;min-width:0}
+#topbar .logo img{height:58px;width:auto;filter:drop-shadow(0 3px 4px rgba(0,0,0,.22))}
+#title{position:absolute;left:-9999px}
+.icon-btn{border:3px solid var(--madeira-esc);background:linear-gradient(180deg,var(--madeira-clara),var(--madeira));color:var(--texto-claro);font:inherit;font-weight:800;border-radius:14px;min-width:46px;height:46px;padding:0 12px;font-size:1.2rem;line-height:1;cursor:pointer;box-shadow:0 3px 0 var(--madeira-esc)}
+.icon-btn:active{transform:translateY(2px);box-shadow:none}
+.badge-btn{border:0;background:rgba(255,253,247,.75);border-radius:999px;display:flex;align-items:center;gap:4px;font:inherit;font-weight:800;color:var(--madeira-esc);font-size:1.1rem;cursor:pointer;padding:2px 10px 2px 2px;min-height:46px}
+.badge-btn img{width:40px;height:40px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}
+.badge-btn.bump img{animation:bump .5s}
+@keyframes bump{30%{transform:scale(1.3) rotate(-12deg)}}
+#screen{position:relative;z-index:1;flex:1;overflow:auto;padding:4px 14px 32px;max-width:680px;width:100%;margin:0 auto;-webkit-overflow-scrolling:touch}
+#screen>div>*+*{margin-top:var(--gap)}
+/* ---------- placa de madeira (CSS) e fita vermelha (CSS) ---------- */
+.sign{position:relative;display:block;margin:10px auto 0;max-width:460px;color:#FFF3D6;font-weight:800;font-size:clamp(1.15rem,4.6vw,1.5rem);line-height:1.15;text-align:center;padding:14px 22px 15px;overflow-wrap:anywhere;
+  background:linear-gradient(180deg,#A86D3E 0%,#8E5729 32%,#A2693A 34%,#834E22 66%,#9A6334 68%,#7A4A1F 100%);
+  border:3px solid var(--madeira-esc);border-radius:12px;text-shadow:0 2px 0 rgba(0,0,0,.45);letter-spacing:.3px;box-shadow:0 6px 10px rgba(20,50,80,.25),inset 0 1px 0 rgba(255,255,255,.18)}
+.sign::before,.sign::after{content:'';position:absolute;top:50%;width:9px;height:9px;margin-top:-5px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#FFE39A,#C98A12 70%);box-shadow:0 1px 1px rgba(0,0,0,.4)}
+.sign::before{left:9px}.sign::after{right:9px}
+.sign+.ribbon{margin-top:-4px}
+.ribbon{display:block;width:fit-content;margin:10px auto 0;max-width:92%;background:linear-gradient(180deg,#E8584E,#C4352D);color:#fff;font-weight:800;font-size:clamp(.78rem,3.2vw,.9rem);line-height:1.25;text-transform:uppercase;letter-spacing:.5px;padding:7px 18px 8px;text-align:center;border-radius:6px;border:2px solid #8F2520;box-shadow:0 3px 0 #8F2520,0 5px 8px rgba(20,50,80,.2);text-shadow:0 1px 0 rgba(0,0,0,.35);overflow-wrap:anywhere;position:relative}
+.ribbon::before,.ribbon::after{content:'';position:absolute;top:6px;width:12px;height:100%;background:#A82E27;z-index:-1;border-radius:3px}
+.ribbon::before{left:-9px;transform:skewY(18deg)}.ribbon::after{right:-9px;transform:skewY(-18deg)}
+
+/* ---------- cards ---------- */
+.card{background:linear-gradient(180deg,#FCF3DC,#F5E6C4);color:var(--texto);border:3px solid #CDA86B;border-radius:var(--raio);padding:var(--pad);box-shadow:0 8px 18px rgba(20,50,80,.18),inset 0 0 0 2px rgba(255,255,255,.45);position:relative}
+.card>*+*{margin-top:10px}
+.card.mar{background:linear-gradient(180deg,#EAF6FC,#D6ECF7);border-color:#8FC3D2}
+/* contrato: papel pautado em CSS no lugar do pergaminho de 900px esticado (texto cabia numa coluna estreita) */
+.card.contrato{background:var(--papel) repeating-linear-gradient(180deg,transparent 0 30px,rgba(201,162,100,.18) 30px 31px);border:3px double var(--perg-borda);padding-top:22px}
+.card.contrato::before{content:'';position:absolute;right:12px;top:-14px;width:46px;height:46px;background:url(../img/pergaminho-mapa.png) center/contain no-repeat;filter:drop-shadow(0 2px 2px rgba(0,0,0,.25))}
+.card.contrato p{font-size:1rem;line-height:1.55}
+.card h2{font-size:clamp(1.1rem,4.2vw,1.3rem);font-weight:800;color:var(--madeira-esc);line-height:1.2}
+.card h3{font-size:.92rem;font-weight:800;color:var(--madeira);text-transform:uppercase;letter-spacing:.5px;line-height:1.2}
+.card h3:not(:first-child){margin-top:16px}
+.muted{color:var(--texto-2);font-size:.95rem;line-height:1.45}
+.small{font-size:.86rem}.center{text-align:center}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+/* ---------- botões ---------- */
+.btn{border:3px solid var(--madeira-esc);font:inherit;font-weight:800;font-size:1rem;line-height:1.2;min-height:48px;padding:10px 18px;border-radius:14px;cursor:pointer;background:linear-gradient(180deg,var(--madeira-clara),var(--madeira));color:var(--texto-claro);box-shadow:0 4px 0 var(--madeira-esc);transition:transform .08s;text-shadow:0 1px 0 rgba(0,0,0,.3);display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center;overflow-wrap:anywhere}
+.btn:active{transform:translateY(3px);box-shadow:none}
+.btn-gold{background:linear-gradient(180deg,#FFD35C,var(--ouro) 60%,#E09A1C);color:#4A2E00;border-color:var(--ouro-esc);box-shadow:0 4px 0 var(--ouro-esc);text-shadow:none}
+.btn-ghost{background:rgba(255,255,255,.6);color:var(--madeira-esc);border-color:var(--perg-borda);box-shadow:0 4px 0 var(--perg-borda);text-shadow:none}
+.btn-red{background:linear-gradient(180deg,#E24E45,#C4352D);border-color:var(--vermelho-esc);box-shadow:0 4px 0 var(--vermelho-esc)}
+.btn.full{width:100%;display:flex;text-decoration:none}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btn-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}.btn-row .btn{flex:1;min-width:140px}
+input.in,textarea.in,select.in{width:100%;font:inherit;font-size:1.05rem;min-height:48px;padding:10px 14px;border-radius:12px;border:2px solid var(--perg-borda);background:var(--papel);color:var(--texto);margin-top:6px}
+input.in:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(46,111,168,.18)}
+label.lbl{display:block;font-weight:800;color:var(--madeira);margin-top:12px;font-size:.95rem;line-height:1.3}
+label.lbl:first-child{margin-top:0}
+/* ---------- painel do capitão: grupos + tiles ---------- */
+.grupo-t{font-size:.85rem;font-weight:800;color:var(--madeira-esc);text-transform:uppercase;letter-spacing:.6px;margin:6px 4px 8px;display:flex;align-items:center;gap:8px}
+.grupo-t::after{content:'';flex:1;border-top:2px dashed rgba(74,42,14,.3)}
+.menu{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{background:linear-gradient(180deg,var(--perg),#F5E6C2);border:3px solid var(--perg-borda);color:var(--texto);border-radius:var(--raio);padding:12px;box-shadow:var(--sombra);cursor:pointer;text-align:left;font:inherit;position:relative;min-height:112px;display:flex;flex-direction:column;gap:4px}
+.tile img{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 2px 2px rgba(0,0,0,.18))}
+.tile>span{display:block;min-width:0}
+.tile b{display:block;font-size:1rem;color:var(--madeira-esc);line-height:1.15;margin-top:4px;overflow-wrap:anywhere}
+.tile small{display:block;color:var(--texto-2);font-size:.82rem;line-height:1.3;margin-top:2px}
+.tile.locked{opacity:.72}.tile.locked::after{content:'';position:absolute;top:10px;right:10px;width:22px;height:22px;background:url(../img/moeda-ouro.png) center/contain no-repeat}
+.tile:active{transform:scale(.98)}
+.tile.destaque{grid-column:1/-1;flex-direction:row;align-items:center;gap:12px;min-height:0;background:linear-gradient(180deg,#FFE9A8,#F6CF66);border-color:var(--ouro-esc)}
+.tile.destaque img{width:56px;height:56px}
+.tile.destaque b{margin-top:0;font-size:1.1rem}
+/* ---------- fichas (chips) e itens ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:2px solid var(--perg-borda);background:var(--papel);color:var(--texto);border-radius:999px;padding:5px 12px 5px 5px;font:inherit;font-size:.93rem;font-weight:700;line-height:1.2;cursor:pointer;display:inline-flex;gap:7px;align-items:center;min-height:42px;text-align:left}
+.chip img{width:30px;height:30px;border-radius:50%;flex:none}
+.chip.on{background:var(--azul);color:#fff;border-color:#1F4F80}
+.chip.hard{border-style:dashed}
+.chip.tag{min-height:0;padding:4px 10px;font-size:.85rem;cursor:default}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:10px;background:var(--papel);border-radius:14px;padding:8px 12px;border:2px solid var(--perg-esc);color:var(--texto);text-decoration:none;min-height:56px}
+img.ic{width:48px;height:48px;flex:none;object-fit:contain}
+.item img.ic{border-radius:50%}
+.row>img.ic{width:40px;height:40px}
+.item .tx{flex:1;font-weight:800;color:var(--madeira-esc);min-width:0;line-height:1.25;overflow-wrap:anywhere}
+.item .tx small{display:block;font-weight:600;color:var(--texto-2);font-size:.82rem;line-height:1.3;margin-top:2px}
+.item>b{font-size:1.2rem;color:var(--madeira-esc);flex:none}
+.item.done{background:#F3F9EC;border-color:#A8D39A}
+/* prêmio da casa 5/10/20: campo de texto ganha a largura inteira abaixo do rótulo */
+.item.premio{flex-wrap:wrap}.item.premio .tx{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px}
+.item.premio .tx input{flex:1 0 100%;width:100%;min-width:0;margin-top:6px!important;font-size:1rem}
+.item button{border:2px solid var(--ouro-esc);font:inherit;font-weight:800;border-radius:12px;min-height:44px;min-width:44px;padding:4px 10px;cursor:pointer;background:linear-gradient(180deg,#FFD35C,var(--ouro));color:#4A2E00;display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none}
+.item button img{width:32px;height:32px}
+.item button.x{background:#F3D9D6;border-color:#C98A84;color:#8B2B25;font-size:1.1rem}
+.item.done button{background:#E6F2DE;border-color:#A8D39A;color:var(--verde-esc)}
+.flag{width:26px;height:26px;border-radius:6px;border:2px dashed var(--perg-borda);flex:none}
+.flag.on{border-style:solid;background:var(--verde) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z'/%3E%3C/svg%3E") center/80% no-repeat;border-color:var(--verde-esc)}
+/* ---------- mapa da ilha (prancha real do kit com sobreposição) ---------- */
+.mapa{position:relative;border:3px solid var(--perg-borda);border-radius:var(--raio);overflow:hidden;box-shadow:var(--sombra);background:#8FCDEF}
+.mapa img.base{width:100%;display:block}
+.casa{position:absolute;width:9.4%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;transition:opacity .4s}
+.casa.on{background:url(../img/moeda-ouro.png) center/100% no-repeat;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));animation:pop .4s}
+.casa.fora{background:rgba(40,40,40,.28)}
+.pin{position:absolute;width:11%;transform:translate(-50%,-105%);pointer-events:none;filter:drop-shadow(0 3px 3px rgba(0,0,0,.35));animation:balanco 3s ease-in-out infinite}
+@keyframes balanco{0%,100%{transform:translate(-50%,-105%) rotate(-4deg)}50%{transform:translate(-50%,-108%) rotate(4deg)}}
+/* progresso em texto (acompanha o mapa) */
+.progresso{display:flex;align-items:center;gap:10px}
+.progresso .barra{flex:1;height:14px;border-radius:999px;background:rgba(74,42,14,.15);overflow:hidden;border:2px solid rgba(74,42,14,.2)}
+.progresso .barra i{display:block;height:100%;background:linear-gradient(90deg,#FFD35C,var(--ouro));border-radius:999px;transition:width .5s}
+.progresso b{font-size:.95rem;color:var(--madeira-esc);white-space:nowrap}
+
+/* ---------- ilha da calma (prancha real com pontos clicáveis) ---------- */
+.ilha{position:relative;border:3px solid #8FC3D2;border-radius:var(--raio);overflow:hidden;box-shadow:var(--sombra)}
+.ilha img{width:100%;display:block}
+.ilha button{position:absolute;width:12%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;border:0;background:transparent;cursor:pointer}
+.ilha button:active{background:rgba(255,255,255,.35)}
+.calm-list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media (max-width:380px){.calm-list{grid-template-columns:1fr}}
+.calm-list button{display:flex;align-items:center;gap:8px;background:var(--papel);border:2px solid #8FC3D2;border-radius:12px;padding:8px;min-height:50px;font:inherit;font-weight:800;font-size:.9rem;line-height:1.2;color:#1B5A6B;cursor:pointer;text-align:left}
+.calm-list button i{width:30px;height:30px;border-radius:50%;background:var(--c,#2E6FA8);color:#fff;font-style:normal;display:flex;align-items:center;justify-content:center;flex:none;font-size:.9rem}
+.calm-big{background:linear-gradient(180deg,#EAF6FC,#CFE8F4);border:3px solid #8FC3D2;border-radius:22px;padding:26px 20px;text-align:center;color:var(--texto)}
+.calm-big .num{width:64px;height:64px;border-radius:50%;background:var(--c,#2E6FA8);color:#fff;font-weight:800;font-size:1.6rem;display:flex;align-items:center;justify-content:center;margin:0 auto 8px}
+.calm-big h2{color:#1B5A6B;margin:8px 0;font-size:clamp(1.2rem,5vw,1.5rem)}.calm-big p{font-size:1.15rem;line-height:1.45}
+.calm-big .dica{margin-top:16px;font-size:.92rem;color:var(--texto-2);border-top:2px dashed #8FC3D2;padding-top:12px;text-align:left}
+.breath{width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,#8FD3E8,#2E86AB);margin:14px auto;animation:breath 8s ease-in-out infinite}
+@keyframes breath{0%,100%{transform:scale(.7)}50%{transform:scale(1.25)}}
+/* ---------- pirata em missão / certificado (pranchas inteiras) ---------- */
+.prancha{position:relative;border-radius:var(--raio);overflow:hidden;box-shadow:var(--sombra);border:3px solid var(--perg-borda)}
+.prancha img{width:100%;display:block}
+.prancha .nome{position:absolute;left:34%;top:90.5%;width:36%;text-align:center;font-weight:800;color:var(--madeira-esc);font-size:min(4vw,1.4rem);line-height:1}
+.prancha .nome-cert{position:absolute;left:29%;top:43%;width:44%;text-align:center;font-weight:800;color:var(--madeira-esc);font-size:min(4.5vw,1.6rem)}
+.prancha .foto{position:absolute;left:29%;top:26.5%;width:44%;aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.prancha .foto img{width:70%;height:auto}
+/* ---------- feedback ---------- */
+#feedback-overlay{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(20,60,90,.45);backdrop-filter:blur(3px)}
+#feedback-card{background:linear-gradient(180deg,var(--perg),#F5E6C2);border:3px solid var(--perg-borda);color:var(--texto);border-radius:22px;padding:22px 26px;text-align:center;box-shadow:var(--sombra);max-width:min(88vw,380px);animation:pop .35s}
+#feedback-card img{width:128px;height:128px;object-fit:contain;filter:drop-shadow(0 4px 6px rgba(0,0,0,.3))}
+#feedback-card b{display:block;font-size:1.25rem;line-height:1.25;color:var(--madeira-esc);margin-top:8px}
+#feedback-card p{margin-top:6px}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+.confetti{position:fixed;top:-20px;width:22px;height:22px;border-radius:50%;background:url(../img/moeda-ouro.png) center/contain no-repeat;z-index:60;animation:fall 2s ease-in forwards;pointer-events:none}
+@keyframes fall{to{transform:translateY(105vh) rotate(540deg);opacity:.3}}
+#install-banner{position:fixed;left:12px;right:12px;bottom:12px;z-index:40;background:var(--perg);border:3px solid var(--perg-borda);color:var(--texto);border-radius:16px;padding:10px 12px;display:flex;gap:8px;align-items:center;box-shadow:var(--sombra)}
+#install-banner span{flex:1;font-size:.9rem;font-weight:700;line-height:1.3}
+#install-banner #btn-install{border:2px solid var(--madeira-esc);font:inherit;font-weight:800;background:var(--madeira);color:#fff;border-radius:12px;padding:8px 12px;min-height:40px}
+#install-banner .icon-btn{height:36px;min-width:36px;padding:0 8px;font-size:1rem}
+.shake{animation:shake .4s}@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* ---------- miudezas ---------- */
+.sig{border:2px dashed var(--perg-borda);border-radius:12px;padding:12px;min-height:48px;text-align:center;cursor:pointer;background:var(--papel);font-weight:800;color:var(--madeira);line-height:1.25}
+.sig.on{background:#F3F9EC;border-style:solid;border-color:var(--verde);color:var(--verde-esc)}
+.pill{display:inline-block;background:var(--perg-esc);color:var(--madeira-esc);border-radius:999px;padding:4px 12px;font-size:.82rem;font-weight:800;line-height:1.3;max-width:100%;overflow-wrap:anywhere}
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.week div{background:var(--papel);border:2px solid var(--perg-esc);border-radius:10px;padding:6px 1px;text-align:center;font-size:clamp(.62rem,2.6vw,.78rem);font-weight:700;min-height:52px;min-width:0;overflow:hidden}
+.week div b{display:block;font-size:1.1rem;color:var(--madeira-esc)}
+.week div.on{background:#FFF1C9;border-color:var(--ouro)}
+.hero-pirata{display:flex;gap:10px;align-items:flex-end}
+.hero-pirata img{width:84px;max-width:28%;height:auto;flex:none;filter:drop-shadow(0 3px 4px rgba(0,0,0,.22))}
+.balao{flex:1;min-width:0;background:var(--papel);border:2px solid var(--perg-borda);border-radius:16px;padding:10px 12px;font-weight:700;line-height:1.4;position:relative;overflow-wrap:anywhere}
+.balao::before{content:'';position:absolute;left:-10px;bottom:14px;border:8px solid transparent;border-right-color:var(--perg-borda);border-left:0}
+/* bloco "o que dizer" / dicas de leitura rápida */
+.dicas{display:flex;flex-direction:column;gap:8px}
+.dica{background:var(--papel);border-left:5px solid var(--ouro);border-radius:10px;padding:10px 12px;line-height:1.4}
+.dica b{display:block;color:var(--madeira-esc);font-size:.95rem;margin-bottom:2px}
+.dica span{display:block;color:var(--texto);font-size:.95rem}
+.dica.mar{border-left-color:var(--azul)}
+.faq summary{cursor:pointer;font-weight:800;color:var(--madeira-esc);padding:10px 0;list-style:none;display:flex;gap:8px;align-items:center;line-height:1.25}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::before{content:'+';flex:none;width:26px;height:26px;border-radius:50%;background:var(--perg-esc);display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+.faq[open] summary::before{content:'–'}
+.faq+.faq{border-top:2px dashed var(--perg-esc);margin-top:0}
+.faq p{padding:0 0 12px 34px;line-height:1.5;color:var(--texto)}
+/* cada "momento" da tela O que dizer é um card recolhível próprio */
+.faq.card{padding:4px var(--pad)}.faq.card summary{padding:12px 0}.faq.card+.faq.card{border-top:3px solid #CDA86B;margin-top:10px}
+.faq.card p{padding-left:34px}.faq.card>p:last-child{padding-bottom:12px}.faq.card>*+*{margin-top:0}
+.preco{font-size:clamp(1.6rem,7vw,2rem);color:var(--madeira-esc);line-height:1.1}
+.foot{font-size:.78rem;text-align:center;margin:10px auto 24px;line-height:1.4;color:var(--madeira-esc);background:rgba(252,243,220,.85);border-radius:12px;padding:8px 12px;max-width:560px}
+/* ---------- 20/10/2026: momentos do dia, patente, primeiros passos, 4 semanas ---------- */
+.momento{display:flex;align-items:center;gap:8px;margin:6px 2px 0;font-size:.82rem;font-weight:800;color:var(--madeira-esc);text-transform:uppercase;letter-spacing:.5px}
+.momento .ic-m{width:24px;height:24px;object-fit:contain}
+.momento+.item{margin-top:2px}
+.nivel{display:flex;align-items:center;gap:10px;background:rgba(255,253,247,.7);border:2px dashed var(--perg-borda);border-radius:14px;padding:8px 12px}
+.nivel .ic{width:40px;height:40px;object-fit:contain;flex:none}
+.nivel .tx{min-width:0;line-height:1.25}.nivel b{display:block;color:var(--madeira-esc);font-size:.95rem}.nivel small{display:block;color:var(--texto-2);font-size:.82rem}
+.guiado .item{border:0;background:rgba(255,255,255,.75);font:inherit;text-align:left;cursor:pointer;width:100%;color:var(--texto)}
+.guiado .item .num{flex:none;width:32px;height:32px;border-radius:50%;background:var(--ouro);color:#4A2E00;font-weight:800;display:grid;place-items:center;font-size:1rem}
+.guiado .item.done{opacity:.7}.guiado .item.done .num{background:var(--verde);color:#fff}
+.guiado .item .tx{font-weight:800;color:var(--madeira-esc);line-height:1.2}.guiado .item .tx small{display:block;font-weight:600;color:var(--texto-2);font-size:.82rem}
+.semanas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;align-items:end;height:120px}
+.semanas div{position:relative;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;background:var(--papel);border:2px solid var(--perg-esc);border-radius:10px;padding:4px 2px;min-width:0;overflow:hidden}
+.semanas div.on{border-color:var(--ouro)}
+.semanas i{display:block;width:60%;min-height:4px;background:linear-gradient(180deg,#FFD35C,var(--ouro));border-radius:6px 6px 2px 2px;margin-bottom:4px}
+.semanas b{font-size:1rem;color:var(--madeira-esc);line-height:1}.semanas small{font-size:clamp(.58rem,2.4vw,.7rem);color:var(--texto-2);white-space:nowrap}
+@media print{body{background:#fff;color:#000}#bg,#topbar,#install-banner,.btn,.btn-row{display:none!important}.card{box-shadow:none;border:1px solid #999}}
+

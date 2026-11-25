@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Mapa do Tesouro</title>
+  <meta name="description" content="Sistema de missões e recompensas que transforma a rotina da criança em aventura. Tela do adulto, papel da criança. Sem anúncios, sem coleta de dados." />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#A9DCF5" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Tesouro" />
+  <link rel="stylesheet" href="fonts/fonts.css" />
+  <!-- sem ?v= no CSS: o service worker guarda './css/styles.css' e um parâmetro de versão impedia o
+       match offline (achado de 05/10/2026). A invalidação já vem do nome do cache, tesouro-v<versão>. -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="bg" aria-hidden="true"></div>
+  <header id="topbar">
+    <button id="btn-back" class="icon-btn" hidden aria-label="Voltar">←</button>
+    <h1 id="title">Mapa do Tesouro</h1>
+    <a class="logo" id="logo" href="#"><img src="img/logo.png" alt="Mapa do Tesouro · Missão Pirata"></a>
+    <button id="coins-badge" class="badge-btn" title="moedas"><img src="img/moeda-ouro.png" alt=""><span id="coins-count">0</span></button>
+    <button id="btn-parent" class="icon-btn" aria-label="Painel do Capitão">⚓</button>
+  </header>
+  <main id="screen"></main>
+  <div id="install-banner" hidden><span id="install-msg">Instale o app na tela inicial</span><button id="btn-install">Instalar</button><button id="btn-install-close" class="icon-btn" aria-label="Fechar">✕</button></div>
+  <div id="feedback-overlay" hidden><div id="feedback-card"></div></div>
+  <script src="config.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/rotas.js"></script>
+  <script src="js/sw-registro.js"></script>
+</body>
+</html>
