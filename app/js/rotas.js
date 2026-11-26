@@ -472,7 +472,7 @@
       <label class="lbl">${esc(t('set_copy'))}</label>
       <p class="muted small">${esc(t('set_privacy'))} ${esc(t('set_copy_hint'))}</p>
       <div class="btn-row"><button class="btn btn-ghost" id="st-exp">${esc(t('set_export'))}</button>${navigator.share ? `<button class="btn btn-ghost" id="st-share">${esc(t('set_share'))}</button>` : ''}<label class="btn btn-ghost" style="text-align:center">${esc(t('set_import'))}<input type="file" accept="application/json" id="st-imp" hidden></label></div>
-      ${M.BAK.existe() ? `<p class="muted small">${esc(t('bak_hint', { d: new Date(M.BAK.quando()).toLocaleString(LOCALE_IDIOMA[LANG], { dateStyle: 'short', timeStyle: 'short' }) }))}</p><div class="btn-row"><button class="btn btn-ghost full" id="st-bak">${esc(t('bak_btn'))}</button></div>` : ''}
+      ${(bi => bi ? `<p class="muted small" id="st-bak-info">${esc(t('bak_hint', { d: bi.t ? new Date(bi.t).toLocaleString(LOCALE_IDIOMA[LANG], { dateStyle: 'short', timeStyle: 'short' }) : '—', nomes: bi.piratas.join(', '), n: bi.entregas }))}</p><div class="btn-row"><button class="btn btn-ghost" id="st-bak">${esc(t('bak_btn'))}</button><button class="btn btn-ghost" id="st-bak-del">${esc(t('bak_del'))}</button></div>` : '')(M.BAK.info())}
       <p class="muted small">${esc(t('set_reset_scope'))}</p>
       <div class="btn-row"><button class="btn btn-red full" id="st-reset">${esc(t('set_reset'))}</button></div></div>${foot()}</div>`);
     w.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => { M.setLang(b.dataset.lang); go('settings', null, true); }));
@@ -512,15 +512,31 @@
       if (!v.ok) { M.feedback('pergaminho-mapa', t(v.motivo === 'vazio' ? 'imp_empty' : v.motivo === 'versao' ? 'imp_newer' : 'imp_bad'), '', 3000); return; }
       const atuais = M.state.piratas.map(p => p.nome).join(', ') || '—';
       if (!confirm(t('imp_confirm', { novos: v.piratas.join(', '), n: v.entregas, atuais }))) return;
-      // Só anuncia sucesso depois de a gravação confirmar; se falhou, nada mudou (nem na tela nem no disco).
-      if (!M.importar(j.state)) { M.feedback('pergaminho-mapa', t('imp_fail'), '', 4000); return; }
+      // Só anuncia sucesso depois de a gravação confirmar; se falhou, nada mudou (tela, disco, cópia anterior).
+      if (!M.importar(j.state)) { falhouGravar(); return; }
       M.atualizaMoedas(); M.feedback('bau', t('imp_done', { n: v.entregas }), '', 2200); go('parent', null, true); });
+    // Sem espaço para guardar o que está aqui como cópia anterior, a importação não acontece.
+    // Oferece levar esse estado para fora do navegador (arquivo), para a família liberar espaço e tentar de novo.
+    function falhouGravar() {
+      M.feedback('pergaminho-mapa', t('imp_fail'), '', 4000);
+      if (M.state.piratas.length && confirm(t('imp_fail_export'))) baixar(M.BACKUP.gerar(), 'application/json', nomeCopia());
+    }
     const bak = w.querySelector('#st-bak'); if (bak) bak.addEventListener('click', () => {
-      if (!confirm(t('bak_confirm'))) return;
-      if (!M.BAK.restaurar()) { M.feedback('pergaminho-mapa', t('imp_fail'), '', 4000); return; }
-      M.atualizaMoedas(); M.feedback('bau', t('bak_done'), '', 2200); go('parent', null, true);
+      const bi = M.BAK.info(); if (!bi) return go('settings', null, true);
+      if (!confirm(t('bak_confirm', { nomes: bi.piratas.join(', '), n: bi.entregas, atuais: M.state.piratas.map(p => p.nome).join(', ') || '—' }))) return;
+      if (!M.BAK.restaurar()) { falhouGravar(); return; }
+      M.atualizaMoedas(); M.feedback('bau', t('bak_done'), t('bak_done_s'), 3200); go('parent', null, true);
     });
-    w.querySelector('#st-reset').addEventListener('click', () => { if (!confirm(t('set_reset_confirm'))) return; M.resetar(); M.fecharGate(); M.atualizaMoedas(); go('onboarding', null, true); });
+    const bakDel = w.querySelector('#st-bak-del'); if (bakDel) bakDel.addEventListener('click', () => {
+      if (!confirm(t('bak_del_confirm'))) return;
+      M.BAK.apagar(); go('settings', null, true);
+    });
+    w.querySelector('#st-reset').addEventListener('click', () => {
+      if (!confirm(t('set_reset_confirm'))) return;
+      // Se o navegador recusar gravar, nada foi apagado: a tela fica onde está e diz isso.
+      if (!M.resetar()) { M.feedback('pergaminho-mapa', t('set_reset_fail'), '', 4000); return; }
+      M.fecharGate(); M.atualizaMoedas(); go('onboarding', null, true);
+    });
     $('screen').appendChild(w);
   };
 })();

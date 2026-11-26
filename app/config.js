@@ -4,7 +4,7 @@
 self.APP_CONFIG = {
   brand: 'Mapa do Tesouro',        // nome do app; todos os textos usam este valor
   subtitle: 'Missão Pirata',
-  version: '0.7.1',                // 25/11: importação atômica com cópia anterior recuperável, "Apagar tudo" completo, assinaturas por teclado, SW só limpa o próprio prefixo, quiz pelo catálogo. Subir a versão invalida o cache do service worker
+  version: '0.7.2',                // 26/11: importar, voltar e apagar não perdem dados recuperáveis se a gravação falhar, nem com duas abas abertas (corte); perfis normalizados ao carregar (Escola pela metade). 25/11: importação atômica com cópia anterior recuperável, "Apagar tudo" completo, assinaturas por teclado, SW só limpa o próprio prefixo, quiz pelo catálogo. Subir a versão invalida o cache do service worker
   purchaseAtivo: false,            // evento Purchase do Pixel na página de retorno. Só ligar depois de confirmar na Cakto que /obrigado só é chamada com pagamento aprovado e com qual parâmetro
   siteLabel: 'mapadotesouro.app',  // CONFERIR: domínio precisa estar registrado (é impresso nas folhas)
   author: 'Psicóloga Roberta Leitão · CRP 10/08929',

@@ -34,7 +34,9 @@
   // (revisão de 25/11/2026). Antes bastava abrir em localhost ou na rede local, e o pacote público
   // carregava essa porta aberta; agora ela exige um gesto explícito de quem desenvolve.
   const HOST_DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
-  const DEV = HOST_DEV && /[?&]dev=1(&|$)/.test(location.search);
+  // A marca fica em sessionStorage (morre ao fechar a aba): sem isso, o fim do cadastro limpa a URL
+  // e o recarregamento seguinte perdia o modo. Fora de localhost a marca é ignorada.
+  const DEV = HOST_DEV && (() => { try { if (/[?&]dev=1(&|$)/.test(location.search)) sessionStorage.setItem('mtp_dev', '1'); return sessionStorage.getItem('mtp_dev') === '1'; } catch (e) { return /[?&]dev=1(&|$)/.test(location.search); } })();
   let premium = DEV || LS.get('ativado') === '1';
   function setPremium(v) { premium = DEV || v; LS.set('ativado', v ? '1' : '0'); }
   const isPremium = () => premium;
@@ -62,9 +64,31 @@
   // ---- estado dos piratas ----
   // pirata: {id, t (criação), _t (último ajuste), nome, tesouro, missoes:[{id,custom,txt,e,dificil}], premios:{5,10,20}, telaMin, viagemBase, viagens,
   //          log:[{d,m,b,c,rara,t}], gastos:[{d,c,min,uso,t}], escola:{comb:['',''],dias:{}}}
-  // state:  {piratas, ativo, pin, pinT, apagados:{chave: carimbo}, _rev}
-  const state = Object.assign({ piratas: [], ativo: null, pin: '', pinT: 0, apagados: {} }, LS.json('state', {}));
-  if (!state.apagados || typeof state.apagados !== 'object') state.apagados = {};
+  // state:  {piratas, ativo, pin, pinT, apagados:{chave: carimbo}, corte, _rev}
+  // Forma garantida de um pirata (revisão de 26/11/2026). Cada tela lê p.escola.dias, p.premios[20],
+  // p.missoes.filter… sem conferir. Uma cópia com a Escola pela metade ({comb} sem dias) passava na
+  // validação e a Missão Escola quebrava ao abrir. Toda entrada de dados (carregar, importar, mesclar
+  // com outra aba) passa por aqui: o que faltar ou vier com o tipo errado recebe o padrão.
+  const ehObj = x => x != null && typeof x === 'object' && !Array.isArray(x);
+  function normalizarPirata(p) {
+    const txt = x => (typeof x === 'string' ? x : '');
+    const num = (x, d) => (typeof x === 'number' && isFinite(x) ? x : d);
+    p.nome = txt(p.nome); p.tesouro = txt(p.tesouro);
+    p.missoes = Array.isArray(p.missoes) ? p.missoes.filter(ehObj) : [];
+    const pr = ehObj(p.premios) ? p.premios : {};
+    p.premios = { 5: txt(pr[5]), 10: txt(pr[10]), 20: txt(pr[20]) };
+    p.telaMin = Math.max(5, num(p.telaMin, 15)); // mesmo piso da tela de Telas; sem teto, para não alterar o que a família combinou
+    p.viagemBase = Math.max(0, num(p.viagemBase, 0)); p.viagens = Math.max(1, num(p.viagens, 1));
+    const e = ehObj(p.escola) ? p.escola : {}; const comb = Array.isArray(e.comb) ? e.comb : [];
+    p.escola = { comb: [txt(comb[0]), txt(comb[1])], dias: ehObj(e.dias) ? e.dias : {} };
+    if (!Array.isArray(p.log)) p.log = [];
+    if (!Array.isArray(p.gastos)) p.gastos = [];
+    return p;
+  }
+  const state = Object.assign({ piratas: [], ativo: null, pin: '', pinT: 0, apagados: {}, corte: 0 }, LS.json('state', {}));
+  if (!ehObj(state.apagados)) state.apagados = {};
+  if (!Array.isArray(state.piratas)) state.piratas = [];
+  state.piratas = state.piratas.filter(ehObj).map(normalizarPirata); // quem importou uma cópia quebrada na 0.7.1 volta a abrir a Missão Escola
   // ---- gravação segura entre abas ----
   // Duas abas (ou o app instalado + o navegador) gravam no mesmo localStorage. Cada gravação leva um
   // carimbo `_rev`; se o carimbo guardado não é o que esta aba conhece, outra aba gravou no meio e
@@ -82,26 +106,46 @@
   const chaveLog = (pid, r) => pid + '/log/' + r.m + '/' + r.d;
   const chavePirata = pid => 'pirata/' + pid;
   const apagado = (chave, t) => { const l = state.apagados[chave]; return l != null && !(t > l); };
+  // 4. Corte (revisão de 26/11/2026). Importar uma cópia e "Apagar tudo" substituem o aparelho
+  //    inteiro, não só os piratas que ESTA aba conhece. Lápide por id não bastava: um pirata criado
+  //    numa segunda aba que esta ainda não tinha visto sobrevivia e voltava ao disco na gravação
+  //    seguinte da outra aba. `state.corte` é o instante da substituição; na mescla vale o maior, e
+  //    todo pirata nascido até ele sai, venha de que aba vier.
+  const morto = p => apagado(chavePirata(p.id), p.t || 0) || (p.t || 0) <= (state.corte || 0);
   function lapide(chave) { state.apagados[chave] = Date.now(); const ks = Object.keys(state.apagados); if (ks.length > 400) ks.sort((a, b) => state.apagados[a] - state.apagados[b]).slice(0, ks.length - 400).forEach(k => delete state.apagados[k]); }
   const CAMPOS_PIRATA = ['nome', 'tesouro', 'missoes', 'premios', 'telaMin', 'viagemBase', 'viagens', 'escola']; // ajustes versionados por `_t`
   function mesclar(outro) {
     if (!outro || !Array.isArray(outro.piratas)) return;
     // lápides: união, com o carimbo maior
     Object.keys(outro.apagados || {}).forEach(k => { if (!(state.apagados[k] >= outro.apagados[k])) state.apagados[k] = outro.apagados[k]; });
-    // piratas apagados aqui ou lá somem dos dois lados
-    state.piratas = state.piratas.filter(p => !apagado(chavePirata(p.id), p.t || 0));
+    if ((outro.corte || 0) > (state.corte || 0)) state.corte = outro.corte;
+    // Um pirata anterior ao corte sai, mas o que uma aba atrasada lançou DEPOIS do corte (t maior) não
+    // se perde: volta para o pirata de mesmo id que veio na cópia importada, se houver. O que é anterior
+    // ao corte foi substituído pela importação e fica só na cópia anterior.
+    const corte = state.corte || 0, sobras = [];
+    const recolher = p => { if (!ehObj(p)) return; const log = (p.log || []).filter(r => (r.t || 0) > corte), gastos = (p.gastos || []).filter(g => (g.t || 0) > corte); if (log.length || gastos.length) sobras.push({ id: p.id, log, gastos }); };
+    // piratas apagados aqui ou lá (ou anteriores a uma importação / "Apagar tudo") somem dos dois lados
+    state.piratas.filter(morto).forEach(recolher);
+    state.piratas = state.piratas.filter(p => !morto(p));
     outro.piratas.forEach(op => {
-      if (apagado(chavePirata(op.id), op.t || 0)) return;
+      if (morto(op)) { recolher(op); return; }
       const p = state.piratas.find(x => x.id === op.id);
-      if (!p) { op.log = (op.log || []).filter(r => !apagado(chaveLog(op.id, r), r.t || 0)); op.gastos = op.gastos || []; podarGastos(op); state.piratas.push(op); return; }
-      // ajustes: vence o carimbo mais recente
-      if ((op._t || 0) > (p._t || 0)) { CAMPOS_PIRATA.forEach(k => { if (op[k] !== undefined) p[k] = op[k]; }); p._t = op._t; }
+      if (!p) { normalizarPirata(op); op.log = op.log.filter(r => !apagado(chaveLog(op.id, r), r.t || 0)); podarGastos(op); state.piratas.push(op); return; }
+      // ajustes: vence o carimbo mais recente (normalizado: a outra aba pode ser de uma versão antiga)
+      if ((op._t || 0) > (p._t || 0)) { CAMPOS_PIRATA.forEach(k => { if (op[k] !== undefined) p[k] = op[k]; }); p._t = op._t; normalizarPirata(p); }
       // entregas: união respeitando lápides
       p.log = p.log.filter(r => !apagado(chaveLog(p.id, r), r.t || 0));
       (op.log || []).forEach(r => { if (apagado(chaveLog(p.id, r), r.t || 0)) return; if (!p.log.some(x => x.m === r.m && x.d === r.d)) p.log.push(r); });
       // trocas: união por carimbo
       (op.gastos || []).forEach(g => { if (!p.gastos.some(x => (x.t && x.t === g.t) || JSON.stringify(x) === JSON.stringify(g))) p.gastos.push(g); });
       [...new Set(p.log.map(x => x.m))].forEach(mid => recalcMissao(p, mid));
+      podarGastos(p);
+    });
+    sobras.forEach(s => {
+      const p = state.piratas.find(x => x.id === s.id); if (!p) return; // pirata apagado de vez ("Apagar tudo"): o lançamento atrasado vai junto
+      s.log.forEach(r => { if (!apagado(chaveLog(p.id, r), r.t || 0) && !p.log.some(x => x.m === r.m && x.d === r.d)) p.log.push(r); });
+      s.gastos.forEach(g => { if (!p.gastos.some(x => x.t === g.t)) p.gastos.push(g); });
+      [...new Set(s.log.map(x => x.m))].forEach(mid => recalcMissao(p, mid));
       podarGastos(p);
     });
     if ((outro.pinT || 0) > (state.pinT || 0)) { state.pin = outro.pin || ''; state.pinT = outro.pinT; }
@@ -137,7 +181,7 @@
   });
   const pirataAtivo = () => state.piratas.find(p => p.id === state.ativo) || state.piratas[0] || null;
   function novoPirata(nome, tesouro) {
-    const agora = Date.now();
+    const agora = Math.max(Date.now(), (state.corte || 0) + 1); // nasce depois do último corte, senão a mescla o descartaria
     const p = { id: 'p' + agora.toString(36) + Math.random().toString(36).slice(2, 5), t: agora, _t: agora, nome: nome || '', tesouro: tesouro || '', missoes: [], premios: { 5: '', 10: '', 20: tesouro || '' }, telaMin: 15, viagemBase: 0, viagens: 1, log: [], gastos: [], escola: { comb: ['', ''], dias: {} } };
     state.piratas.push(p); state.ativo = p.id; save(); return p;
   }
@@ -151,11 +195,20 @@
   // "Apagar tudo deste aparelho" faz o que diz (revisão de 25/11/2026): além dos piratas e do PIN,
   // apaga o lembrete, as respostas do quiz (que incluem a pergunta sobre diagnóstico), a cópia
   // anterior à importação e a marca da última cópia. Fica só o idioma e a ativação do acesso completo.
+  // Revisão de 26/11/2026 (auditoria): se a gravação falhava, a tela voltava ao cadastro e a cópia
+  // anterior era apagada, mas o perfil reaparecia ao recarregar. Agora o estado vazio é gravado
+  // primeiro; só se isso confirmar a memória troca e o resto é apagado. Devolve false sem mexer em nada.
+  // O corte faz o "apagar" valer também para outras abas abertas, inclusive piratas que esta não viu.
   function resetar() {
-    state.piratas.forEach(p => lapide(chavePirata(p.id))); state.piratas = []; state.ativo = null; state.pin = ''; state.pinT = Date.now(); save();
+    const agora = Math.max(Date.now(), (state.corte || 0) + 1);
+    const novo = { piratas: [], ativo: null, pin: '', pinT: agora, apagados: Object.assign({}, state.apagados), corte: agora, _rev: novaRev() };
+    state.piratas.forEach(p => { novo.apagados[chavePirata(p.id)] = agora; }); // para abas ainda na 0.7.1, que não conhecem o corte
+    if (!LS.setJson('state', novo)) return false;
+    Object.keys(state).forEach(k => delete state[k]); Object.assign(state, novo);
     ['lembrete', 'quiz', 'state_bak', 'state_bak_t', 'backup_t'].forEach(k => LS.del(k));
     try { Object.keys(localStorage).filter(k => /^mtp_purchase_/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) { /* ok */ }
     try { if (LEMBRETE.timer) clearTimeout(LEMBRETE.timer); } catch (e) { /* antes da definição */ }
+    return true;
   }
   // Confere um arquivo de cópia antes de importar. Devolve {ok, motivo?, piratas:[nomes], entregas}.
   // Um arquivo errado (outro app, JSON truncado, pirata sem id) não pode apagar semanas de conquistas.
@@ -164,7 +217,6 @@
   // estrutura inteira é conferida, campo a campo, com limites de tamanho. `v` acima do que este app
   // conhece é recusado (cópia de versão futura); `v` ausente (cópias antigas) é aceito.
   const BACKUP_V = 1, MAX_PIRATAS = 8, MAX_LOG = 20000;
-  const ehObj = x => x != null && typeof x === 'object' && !Array.isArray(x);
   const numOuNulo = x => x == null || (typeof x === 'number' && isFinite(x));
   const ISO = /^\d{4}-\d{2}-\d{2}$/;
   function validarBackup(j) {
@@ -185,7 +237,9 @@
       if (p.missoes != null && (!Array.isArray(p.missoes) || p.missoes.some(m => !ehObj(m) || (m.custom ? typeof m.txt !== 'string' : typeof m.id !== 'string')))) return nao();
       if (p.premios != null && !ehObj(p.premios)) return nao();
       if (!numOuNulo(p.telaMin) || !numOuNulo(p.viagemBase) || !numOuNulo(p.viagens)) return nao();
-      if (p.escola != null && (!ehObj(p.escola) || (p.escola.comb != null && !Array.isArray(p.escola.comb)) || (p.escola.dias != null && !ehObj(p.escola.dias)))) return nao();
+      if (p.escola != null && (!ehObj(p.escola) || (p.escola.comb != null && (!Array.isArray(p.escola.comb) || p.escola.comb.some(c => c != null && typeof c !== 'string'))) || (p.escola.dias != null && !ehObj(p.escola.dias)))) return nao();
+      if (p.premios != null && [5, 10, 20].some(c => p.premios[c] != null && typeof p.premios[c] !== 'string')) return nao();
+      // Escola ou prêmios pela metade são aceitos (cópia antiga ou editada à mão): normalizarPirata completa.
       if (p.log != null && !Array.isArray(p.log)) return nao();
       if (p.gastos != null && !Array.isArray(p.gastos)) return nao();
       if ((p.log || []).length > MAX_LOG) return nao();
@@ -194,42 +248,66 @@
     }
     return { ok: true, piratas: ps.map(p => p.nome || '?'), entregas: ps.reduce((s, p) => s + (p.log || []).length, 0) };
   }
-  // Importar um arquivo exportado substitui tudo: carimbos novos para que vença em qualquer aba.
-  // Operação atômica (revisão de 25/11/2026): o estado novo é montado À PARTE, o atual vai para
-  // `mtp_state_bak`, e só depois de a gravação confirmar é que a memória troca. Se o navegador
-  // recusar gravar, tela e armazenamento continuam com o perfil anterior e a função devolve false.
-  // A cópia anterior pode ser recuperada em Ajustes e é removida por "Apagar tudo".
+  // Grava várias chaves como uma operação só (revisão de 26/11/2026). Se uma gravação falhar, as já
+  // feitas voltam ao valor de antes, na ordem inversa. Voltar ao valor anterior devolve o
+  // armazenamento a uma configuração que já cabia, então o desfazer não esbarra na cota.
+  // Na 0.7.1, uma falha ao gravar o estado novo apagava a cópia anterior que já existia.
+  function gravarJuntos(pares) { // [[chave, texto ou null para apagar]]
+    const antes = pares.map(([k]) => LS.get(k, null));
+    for (let i = 0; i < pares.length; i++) {
+      const [k, v] = pares[i];
+      if (v == null) { LS.del(k); continue; }
+      if (LS.set(k, v)) continue;
+      for (let j = i - 1; j >= 0; j--) { const kj = pares[j][0]; if (antes[j] == null) LS.del(kj); else LS.set(kj, antes[j]); }
+      return false;
+    }
+    return true;
+  }
+  // Cópia anterior: uma chave só, {t, state}, para a data e o conteúdo nunca se desencontrarem.
+  // Na 0.7.1 eram duas (state_bak com o estado cru e state_bak_t com a data); ainda são lidas.
+  function lerBak() {
+    const j = LS.json('state_bak', null); if (!ehObj(j)) return null;
+    if (Array.isArray(j.piratas)) return { t: parseInt(LS.get('state_bak_t', '0'), 10) || 0, state: j };
+    return ehObj(j.state) && Array.isArray(j.state.piratas) ? { t: j.t || 0, state: j.state } : null;
+  }
+  const resumo = st => ({ piratas: (st.piratas || []).map(p => (p && p.nome) || '?'), entregas: (st.piratas || []).reduce((s, p) => s + (((p && p.log) || []).length), 0) });
+  // Importar substitui o aparelho inteiro (todas as abas), sem perder o que pode ser recuperado:
+  //   1. o estado novo é montado À PARTE, com carimbos novos e um corte (ver mesclar);
+  //   2. o que estava no aparelho vira a cópia anterior. Se o aparelho estava sem piratas, a cópia
+  //      anterior que já existia fica como está: um estado vazio não pode tomar o lugar dela;
+  //   3. cópia anterior e estado novo são gravados juntos. Se qualquer gravação falhar, nada muda,
+  //      nem a tela, nem o estado em disco, nem a cópia anterior. Devolve false.
+  // Sem espaço para guardar a cópia anterior, a importação é recusada: a tela oferece guardar
+  // uma cópia do que está aqui antes de tentar de novo.
   function importar(st) {
-    const agora = Date.now() + 1; // depois das lápides: o que entra é mais novo do que o que saiu
-    const base = () => ({ missoes: [], premios: { 5: '', 10: '', 20: '' }, telaMin: 15, viagemBase: 0, viagens: 1, escola: { comb: ['', ''], dias: {} } });
-    const semNulos = p => { const o = {}; Object.keys(p).forEach(k => { if (p[k] != null) o[k] = p[k]; }); return o; }; // null não pode vencer o padrão
-    const novo = { piratas: [], ativo: null, pin: '', pinT: agora, apagados: Object.assign({}, state.apagados) };
-    state.piratas.forEach(p => { novo.apagados[chavePirata(p.id)] = agora - 1; });
-    novo.piratas = (st.piratas || []).map(p => Object.assign(base(), semNulos(p), { t: agora, _t: agora, log: (p.log || []).map(r => Object.assign({}, r, { t: agora })), gastos: (p.gastos || []).map(g => Object.assign({}, g, { t: g.t || agora })) }));
-    novo.piratas.forEach(p => { p.missoes = (p.missoes || []).filter(m => m && (m.custom ? m.txt : MISSOES.some(x => x.id === m.id))); [...new Set(p.log.map(x => x.m))].forEach(mid => recalcMissao(p, mid)); podarGastos(p); });
+    const agora = Math.max(Date.now(), (state.corte || 0) + 1) + 1;
+    const novo = { piratas: [], ativo: null, pin: '', pinT: agora, apagados: Object.assign({}, state.apagados), corte: agora - 1 };
+    state.piratas.forEach(p => { novo.apagados[chavePirata(p.id)] = agora - 1; }); // para abas ainda na 0.7.1
+    novo.piratas = (st.piratas || []).map(p => normalizarPirata(Object.assign({}, p, { t: agora, _t: agora, log: (p.log || []).map(r => Object.assign({}, r, { t: agora })), gastos: (p.gastos || []).map(g => Object.assign({}, g, { t: agora })) })));
+    novo.piratas.forEach(p => { p.missoes = p.missoes.filter(m => m.custom ? m.txt : MISSOES.some(x => x.id === m.id)); [...new Set(p.log.map(x => x.m))].forEach(mid => recalcMissao(p, mid)); podarGastos(p); });
     novo.ativo = (novo.piratas.some(p => p.id === st.ativo) ? st.ativo : (novo.piratas[0] || {}).id) || null;
     novo.pin = typeof st.pin === 'string' ? st.pin : '';
     novo._rev = novaRev();
-    const anterior = LS.get('state', null);
-    if (anterior != null && !LS.set('state_bak', anterior)) return false; // sem espaço nem para a salvaguarda: não mexe em nada
-    if (!LS.setJson('state', novo)) { LS.del('state_bak'); return false; }
+    const anterior = LS.json('state', null);
+    const pares = [];
+    if (ehObj(anterior) && Array.isArray(anterior.piratas) && anterior.piratas.length) pares.push(['state_bak', JSON.stringify({ t: agora, state: anterior })], ['state_bak_t', null]);
+    pares.push(['state', JSON.stringify(novo)]);
+    if (!gravarJuntos(pares)) return false;
     Object.keys(state).forEach(k => delete state[k]); Object.assign(state, novo);
-    LS.set('state_bak_t', agora);
     return true;
   }
-  // Cópia anterior à última importação: existe, quando foi feita e como voltar para ela.
+  // Cópia anterior à última importação. Voltar é reversível: o que está no aparelho passa a ser a
+  // cópia anterior (importar faz a troca), então um toque errado em "Voltar" também se desfaz.
+  // Fica até a família descartar ou usar "Apagar tudo": não expira sozinha.
   const BAK = {
-    existe: () => LS.get('state_bak', null) != null,
-    quando: () => parseInt(LS.get('state_bak_t', '0'), 10) || 0,
+    info() { const b = lerBak(); return b ? Object.assign({ t: b.t }, resumo(b.state)) : null; },
+    existe: () => lerBak() != null,
+    quando: () => (lerBak() || {}).t || 0,
     apagar() { LS.del('state_bak'); LS.del('state_bak_t'); },
     restaurar() {
-      const j = LS.json('state_bak', null);
-      if (!j || !Array.isArray(j.piratas)) return false;
-      const v = validarBackup({ v: BACKUP_V, state: j });
-      if (!v.ok) return false;
-      if (!importar(j)) return false;
-      this.apagar(); // voltar é caminho de saída: depois disso o botão some, e a cópia importada por engano não fica guardada
-      return true;
+      const b = lerBak(); if (!b) return false;
+      if (!validarBackup({ v: BACKUP_V, state: b.state }).ok) return false;
+      return importar(b.state);
     }
   };
   // Lembrete de cópia: sem servidor, a cópia exportada é a única salvaguarda. Lembramos quando há
